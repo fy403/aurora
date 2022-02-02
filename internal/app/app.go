@@ -88,6 +88,7 @@ func (this *App) Init() (err error) {
 }
 
 func (this *App) Run() (err error) {
+	// let health check run
 	if err = this.StartHttpServer(); err != nil {
 		return
 	}

@@ -38,6 +38,7 @@ to quickly create a Cobra application.`,
 }
 
 func init() {
+	// add subCmd to rootCmd Usage: aurora version
 	rootCmd.AddCommand(versionCmd)
 
 	// Here you will define your flags and configuration settings.
