@@ -1,6 +1,7 @@
 package log
 
 import (
+	"aurora/internal/utils"
 	"os"
 	"path"
 
@@ -8,8 +9,6 @@ import (
 	"github.com/mae-pax/logger"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
-
-	"aurora/internal/util"
 )
 
 type LogConfig struct {
@@ -44,7 +43,7 @@ func Runtime() *logger.Log {
 	return defaultLoggers.runtime
 }
 
-func EventLog(event string, params util.Params, value interface{}) {
+func EventLog(event string, params utils.Params, value interface{}) {
 	var fileds []zapcore.Field
 	// if name, ok := params.GetString("StoreName"); ok {
 	// 	fileds = append(fileds, zap.Any("StoreName", name))

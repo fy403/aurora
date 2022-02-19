@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"aurora/internal/app"
 	"fmt"
 	"os"
 
@@ -21,17 +20,18 @@ examples and usage of using your application. For example:
 Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
+	SilenceUsage: true,
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
-	RunE: func(cmd *cobra.Command, args []string) error {
-		return app.Run()
-	},
-	PreRunE: func(cmd *cobra.Command, args []string) error {
-		return app.PreRun()
-	},
-	PostRunE: func(cmd *cobra.Command, args []string) error {
-		return app.PostRun()
-	},
+	// RunE: func(cmd *cobra.Command, args []string) error {
+	// 	return app.Run()
+	// },
+	// PreRunE: func(cmd *cobra.Command, args []string) error {
+	// 	return app.PreRun()
+	// },
+	// PostRunE: func(cmd *cobra.Command, args []string) error {
+	// 	return app.PostRun()
+	// },
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.

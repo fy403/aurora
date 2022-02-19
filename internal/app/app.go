@@ -5,6 +5,7 @@ import (
 	"net"
 	"net/http"
 	_ "net/http/pprof"
+	"time"
 
 	// "github.com/prometheus/client_golang/prometheus/promhttp"
 
@@ -27,11 +28,11 @@ func (this *App) HTTPHealth(w http.ResponseWriter, r *http.Request) {
 }
 
 func (this *App) StartHttpServer() (err error) {
-	var port = this.cfg.Port
+	var port = this.cfg.HTTPHealth.Port
 	if port == "" {
 		port = ":80"
 	}
-	l, err := net.Listen("tcp", this.cfg.Port)
+	l, err := net.Listen("tcp", port)
 	if err != nil {
 		return err
 	}
@@ -60,11 +61,11 @@ func (this *App) InitLogs() (err error) {
 
 func (this *App) Init() (err error) {
 	// load config
-	if err = config.InitConfig(); err != nil {
+	if err = config.AppInitConfig(); err != nil {
 		log.Runtime().Errorf("config init error: %s", err.Error())
 		return err
 	}
-	this.cfg = config.Config()
+	this.cfg = config.GetAppConfig()
 
 	// init logs
 	if err = this.InitLogs(); err != nil {
@@ -80,9 +81,8 @@ func (this *App) Init() (err error) {
 	// TODO: link config
 
 	// create instance
-	ctx, cancel := context.WithCancel(context.Background())
+	_, cancel := context.WithCancel(context.Background())
 	// TODO: load app config
-	println(ctx)
 	this.cancel = cancel
 	return
 }
@@ -93,6 +93,8 @@ func (this *App) Run() (err error) {
 		return
 	}
 	// TODO: let app run
+	time.Local, _ = time.LoadLocation("Asia/Beijing")
+	log.Runtime().Infof("center has running")
 	return
 }
 
