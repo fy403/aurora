@@ -18,6 +18,7 @@ import (
 	opentracing_log "github.com/opentracing/opentracing-go/log"
 
 	// "github.com/prometheus/client_golang/prometheus/promhttp"
+	"aurora/internal/auth"
 	mongobackend "aurora/internal/backends/mongo"
 	amqpbroker "aurora/internal/brokers/amqp"
 	"aurora/internal/config"
@@ -48,24 +49,25 @@ func (this *Center) HTTPHealth(w http.ResponseWriter, r *http.Request) {
 }
 
 func (this *Center) HTTPAuth(w http.ResponseWriter, r *http.Request) {
-
+	auth.Login(w, r)
 }
 
 func (this *Center) HTTPTasks(w http.ResponseWriter, r *http.Request) {
-	// Muse use POST
 	if r.Method != "POST" {
 		http.Error(w, "Must use POST", http.StatusBadRequest)
 		return
 	}
 
-	// Reading
+	if ok := auth.Authentication(w, r); !ok {
+		return
+	}
+
 	strByte, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, "Read req.Body failed", http.StatusBadRequest)
 		return
 	}
 
-	// Json decode
 	requestOBJ := &request.CenterRequest{}
 	decoder := json.NewDecoder(bytes.NewReader(strByte))
 	decoder.UseNumber()
@@ -75,9 +77,13 @@ func (this *Center) HTTPTasks(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Verification parameters
 	if err := requestOBJ.Validate(); err != nil {
 		http.Error(w, fmt.Sprintf("Failed to validate format: %v", requestOBJ), http.StatusBadRequest)
+		return
+	}
+
+	if err := requestOBJ.Inject(r); err != nil {
+		http.Error(w, err.Error(), http.StatusBadGateway)
 		return
 	}
 
@@ -99,9 +105,10 @@ func (this *Center) HTTPTasks(w http.ResponseWriter, r *http.Request) {
 	span.LogFields(opentracing_log.String("batch.id", batchID))
 	// Span Context：pass across process boundary
 	span.SetBaggageItem("user.uuid", requestOBJ.UUID)
+	span.SetBaggageItem("user.name", requestOBJ.User)
 	span.SetBaggageItem("batch.id", batchID)
 
-	log.Runtime().Infof("Starting batch:", batchID)
+	log.Runtime().Infof("Starting batch: %s", batchID)
 	time.Local, _ = time.LoadLocation("Asia/Beijing")
 
 	switch v := requestOBJ.TaskType; v {
@@ -118,6 +125,7 @@ func (this *Center) HTTPTasks(w http.ResponseWriter, r *http.Request) {
 		}
 		responseOBJ := request.CenterResponse{
 			UUID:      requestOBJ.UUID,
+			User:      requestOBJ.User,
 			BatchID:   requestOBJ.BatchID,
 			Timestamp: time.Now().Local().Unix(),
 			TaskType:  requestOBJ.TaskType,
@@ -151,6 +159,7 @@ func (this *Center) HTTPTasks(w http.ResponseWriter, r *http.Request) {
 		}
 		responseOBJ := request.CenterResponse{
 			UUID:          requestOBJ.UUID,
+			User:          requestOBJ.User,
 			BatchID:       requestOBJ.BatchID,
 			Timestamp:     time.Now().Local().Unix(),
 			TaskType:      requestOBJ.TaskType,
@@ -203,6 +212,7 @@ func (this *Center) HTTPTasks(w http.ResponseWriter, r *http.Request) {
 		}
 		responseOBJ := request.CenterResponse{
 			UUID:      requestOBJ.UUID,
+			User:      requestOBJ.User,
 			BatchID:   requestOBJ.BatchID,
 			Timestamp: time.Now().Local().Unix(),
 			TaskType:  requestOBJ.TaskType,
@@ -241,6 +251,7 @@ func (this *Center) HTTPTasks(w http.ResponseWriter, r *http.Request) {
 		}
 		responseOBJ := request.CenterResponse{
 			UUID:      requestOBJ.UUID,
+			User:      requestOBJ.User,
 			BatchID:   requestOBJ.BatchID,
 			Timestamp: time.Now().Local().Unix(),
 			TaskType:  requestOBJ.TaskType,
@@ -270,7 +281,7 @@ func (this *Center) HTTPTasks(w http.ResponseWriter, r *http.Request) {
 }
 
 func (this *Center) StartHttpServer() (err error) {
-	var port = this.cfg.HTTPHealth.Port
+	var port = this.cfg.HTTP.Port
 	if port == "" {
 		port = ":80"
 	}
@@ -303,6 +314,13 @@ func (this *Center) InitLogs() (err error) {
 	return nil
 }
 
+func (this *Center) InitAuth() (err error) {
+	if err = auth.Init(this.cfg.Auth); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (this *Center) Init() (err error) {
 	// load config
 	if err = config.AppInitConfig(); err != nil {
@@ -321,7 +339,12 @@ func (this *Center) Init() (err error) {
 		log.Runtime().Errorf("metrics init error: %s", err.Error())
 	}
 
-	// Only Load Center config
+	// init auth
+	if err = this.InitAuth(); err != nil {
+		log.Runtime().Errorf("auth init error: %s", err.Error())
+	}
+
+	// Only Load Center Config
 	var cfg = this.cfg.Center
 	if cfg == nil {
 		log.Runtime().Fatal("cfg.Center must be set")
@@ -341,7 +364,6 @@ func (this *Center) Init() (err error) {
 		return
 	}
 
-	// Test broker and backend connection
 	if err = broker.TestConnect(); err != nil {
 		log.Runtime().Fatalf("Can`t build a connection to broker: %v", err)
 		return
@@ -366,7 +388,7 @@ func (this *Center) Run() (err error) {
 	if opentracingCfg.ServiceName != "" {
 		serviceName = opentracingCfg.ServiceName
 	}
-	cleanup, err := tracers.SetupTracer(serviceName, opentracingCfg.LocalAgentHostPort, opentracingCfg.LogSpans)
+	cleanup, err := tracers.SetupTracer(serviceName, opentracingCfg.CollectorEndpoint, opentracingCfg.LogSpans)
 	if err != nil {
 		log.Runtime().Fatalf("Unable to instantiate a tracer:", err)
 	}

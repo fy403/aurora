@@ -28,7 +28,7 @@ func (this *App) HTTPHealth(w http.ResponseWriter, r *http.Request) {
 }
 
 func (this *App) StartHttpServer() (err error) {
-	var port = this.cfg.HTTPHealth.Port
+	var port = this.cfg.HTTP.Port
 	if port == "" {
 		port = ":80"
 	}

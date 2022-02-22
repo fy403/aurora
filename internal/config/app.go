@@ -3,28 +3,40 @@ package config
 import (
 	"sync"
 
+	"github.com/gorilla/sessions"
 	"github.com/spf13/viper"
 )
 
 // Global App Config
 type AppConfig struct {
-	Help  string
-	Files struct {
-		Log     string
-		Metrics string
-	}
-	Opentracing struct {
-		ServiceName        string
-		LocalAgentHostPort string
-		LogSpans           bool
-	}
-	HTTPHealth struct {
-		Port string
-	}
-	Auth struct {
-	}
-	Center *Config
-	Worker *Config
+	Help        string
+	Files       *Files
+	Opentracing *Opentracing
+	HTTP        *HTTP
+	Auth        *Auth
+	Center      *Config
+	Worker      *Config
+}
+
+type Files struct {
+	Log     string
+	Metrics string
+}
+type Opentracing struct {
+	ServiceName       string
+	CollectorEndpoint string
+	LogSpans          bool
+}
+type HTTP struct {
+	Port string
+}
+type Auth struct {
+	New_authentication_key string
+	New_encryption_key     string
+	Old_authentication_key string
+	Old_encryption_key     string
+	DefaultSessionOption   *sessions.Options
+	Users                  map[string]string
 }
 
 var defaultAppConfig *AppConfig

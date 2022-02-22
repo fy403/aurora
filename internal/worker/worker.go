@@ -310,7 +310,7 @@ func (worker *Worker) taskSucceeded(signature *tasks.Signature, taskResults []*t
 			}
 		}
 
-		worker.server.SendTask(successTask)
+		worker.server.SendChainTask(successTask)
 	}
 
 	// If the task was not part of a group, just return
@@ -386,7 +386,7 @@ func (worker *Worker) taskSucceeded(signature *tasks.Signature, taskResults []*t
 	}
 
 	// Send the chord task
-	_, err = worker.server.SendTask(signature.ChordCallback)
+	_, err = worker.server.SendChordCallback(signature.ChordCallback)
 	if err != nil {
 		return err
 	}

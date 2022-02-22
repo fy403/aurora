@@ -129,6 +129,43 @@ func (server *Server) GetRegisteredTask(name string) (interface{}, error) {
 	return taskFunc, nil
 }
 
+// SendChordCallback will extract trace context and return a new span from signatuire.ChordCallback
+func (server *Server) SendChordCallback(signature *tasks.Signature) (*result.AsyncResult, error) {
+	// Try to extract the span context from the carrier.
+	span := tracing.StartSpanFromHeaders(signature.Headers, "SendChordCallback")
+	defer span.Finish()
+	// tag the span with some info about the signature
+	tracing.AnnotateSpanWithSignatureInfo(span, signature)
+	// update signature`s span info into now span
+	signature.Headers = tracing.HeadersWithSpan(signature.Headers, span)
+
+	// Make sure result backend is defined
+	if server.backend == nil {
+		return nil, errors.New("Result backend required")
+	}
+
+	// Auto generate a UUID if not set already
+	if signature.UUID == "" {
+		taskID := uuid.New().String()
+		signature.UUID = fmt.Sprintf("task_%v", taskID)
+	}
+
+	// Set initial task state to PENDING
+	if err := server.backend.SetStatePending(signature); err != nil {
+		return nil, fmt.Errorf("Set state pending error: %s", err)
+	}
+
+	if server.prePublishHandler != nil {
+		server.prePublishHandler(signature)
+	}
+
+	if err := server.broker.Publish(context.Background(), signature); err != nil {
+		return nil, fmt.Errorf("Publish message error: %s", err)
+	}
+
+	return result.NewAsyncResult(signature, server.backend), nil
+}
+
 // SendTaskWithContext will inject the trace context in the signature headers before publishing it
 func (server *Server) SendTaskWithContext(ctx context.Context, signature *tasks.Signature) (*result.AsyncResult, error) {
 	span, _ := opentracing.StartSpanFromContext(ctx, "SendTask", tracing.ProducerOption(), tracing.AuroraTag)
@@ -169,6 +206,46 @@ func (server *Server) SendTask(signature *tasks.Signature) (*result.AsyncResult,
 	return server.SendTaskWithContext(context.Background(), signature)
 }
 
+// SendChainTask will extract tracer context info from header and update now span into header
+func (server *Server) SendChainTask(signature *tasks.Signature) (*result.AsyncResult, error) {
+	// Try to extract the span context from the carrier.
+	span := tracing.StartSpanFromHeaders(signature.Headers, "SendChainTask")
+	defer span.Finish()
+	// tag the span with some info about the signature
+	tracing.AnnotateSpanWithSignatureInfo(span, signature)
+	// update signature`s span info into now span
+	// inject the tracing span into the tasks OnSuccess signature headers
+	for _, sig := range signature.OnSuccess {
+		sig.Headers = tracing.HeadersWithSpan(sig.Headers, span)
+	}
+
+	// Make sure result backend is defined
+	if server.backend == nil {
+		return nil, errors.New("Result backend required")
+	}
+
+	// Auto generate a UUID if not set already
+	if signature.UUID == "" {
+		taskID := uuid.New().String()
+		signature.UUID = fmt.Sprintf("task_%v", taskID)
+	}
+
+	// Set initial task state to PENDING
+	if err := server.backend.SetStatePending(signature); err != nil {
+		return nil, fmt.Errorf("Set state pending error: %s", err)
+	}
+
+	if server.prePublishHandler != nil {
+		server.prePublishHandler(signature)
+	}
+
+	if err := server.broker.Publish(context.Background(), signature); err != nil {
+		return nil, fmt.Errorf("Publish message error: %s", err)
+	}
+
+	return result.NewAsyncResult(signature, server.backend), nil
+}
+
 // SendChainWithContext will inject the trace context in all the signature headers before publishing it
 func (server *Server) SendChainWithContext(ctx context.Context, chain *tasks.Chain) (*result.ChainAsyncResult, error) {
 	span, _ := opentracing.StartSpanFromContext(ctx, "SendChain", tracing.ProducerOption(), tracing.AuroraTag, tracing.WorkflowChainTag)
@@ -181,7 +258,7 @@ func (server *Server) SendChainWithContext(ctx context.Context, chain *tasks.Cha
 
 // SendChain triggers a chain of tasks
 func (server *Server) SendChain(chain *tasks.Chain) (*result.ChainAsyncResult, error) {
-	_, err := server.SendTask(chain.Tasks[0])
+	_, err := server.SendChainTask(chain.Tasks[0])
 	if err != nil {
 		return nil, err
 	}

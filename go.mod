@@ -8,6 +8,7 @@ require (
 	github.com/aws/aws-sdk-go v1.42.52
 	github.com/go-redis/redis/v8 v8.6.0
 	github.com/google/uuid v1.2.0
+	github.com/gorilla/sessions v1.2.1
 	github.com/mae-pax/logger v0.3.0
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/spf13/cobra v1.3.0
@@ -34,6 +35,7 @@ require (
 	github.com/golang/snappy v0.0.3 // indirect
 	github.com/google/go-cmp v0.5.7 // indirect
 	github.com/googleapis/gax-go/v2 v2.1.1 // indirect
+	github.com/gorilla/securecookie v1.1.1 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/klauspost/compress v1.13.6 // indirect
 	github.com/leodido/go-urn v1.2.1 // indirect

@@ -18,17 +18,18 @@ import (
 //
 // The collector will be listening on localhost:6831
 // and the query UI is reachable on localhost:16686.
-func SetupTracer(serviceName string, localAgentHostPort string, logSpans bool) (func(), error) {
+func SetupTracer(serviceName, collectorEndpoint string, logSpans bool) (func(), error) {
 
 	// Jaeger setup code
 	config := jaegercfg.Configuration{
 		Sampler: &jaegercfg.SamplerConfig{
 			Type:  jaeger.SamplerTypeConst,
-			Param: 1,
+			Param: 1, // It either samples all traces (sampler.param=1) or none of them (sampler.param=0)
 		},
 		Reporter: &config.ReporterConfig{
-			LocalAgentHostPort: localAgentHostPort, // "127.0.0.1:6831"
-			LogSpans:           logSpans,           // true
+			// LocalAgentHostPort: localAgentHostPort, // "localhost:6831"
+			CollectorEndpoint: collectorEndpoint, //"http://127.0.0.1:14268/api/traces"
+			LogSpans:          logSpans,          // true
 		},
 	}
 

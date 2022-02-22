@@ -28,9 +28,9 @@ func (this *Worker) HTTPHealth(w http.ResponseWriter, r *http.Request) {
 }
 
 func (this *Worker) StartHttpServer() (err error) {
-	var port = this.cfg.HTTPHealth.Port
+	var port = this.cfg.HTTP.Port
 	if port == "" {
-		port = ":80"
+		port = ":8080"
 	}
 	l, err := net.Listen("tcp", port)
 	if err != nil {
@@ -126,9 +126,10 @@ func (this *Worker) Init() (err error) {
 		return
 	}
 
+	// Set worker subscribe configure
 	hostname, err := os.Hostname()
 	if err != nil {
-		this.ConsumerTag = fmt.Sprintf("aurora_worker_id_%s", time.Now().Unix())
+		this.ConsumerTag = fmt.Sprintf("aurora_worker_id_%d", time.Now().Unix())
 	} else {
 		this.ConsumerTag = hostname
 	}
@@ -162,7 +163,7 @@ func (this *Worker) Run() (err error) {
 	if opentracingCfg.ServiceName != "" {
 		serviceName = opentracingCfg.ServiceName
 	}
-	cleanup, err := tracers.SetupTracer(serviceName, opentracingCfg.LocalAgentHostPort, opentracingCfg.LogSpans)
+	cleanup, err := tracers.SetupTracer(serviceName, opentracingCfg.CollectorEndpoint, opentracingCfg.LogSpans)
 	if err != nil {
 		log.Runtime().Fatalf("Unable to instantiate a tracer:", err)
 	}
