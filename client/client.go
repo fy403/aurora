@@ -79,6 +79,20 @@ func (conn *AuroraConnector) login() error {
 	return nil
 }
 
+func (conn *AuroraConnector) SendAsync(requestOBJ *CenterRequest) <-chan *CenterResponse {
+	channel := make(chan *CenterResponse, 10)
+	go func() {
+		responseOBJ, err := conn.SendSync(requestOBJ)
+		// TODO: Modify self to check status
+		if err != nil {
+			close(channel)
+			return
+		}
+		channel <- responseOBJ
+	}()
+	return channel
+}
+
 // SendSync send a sync http request to Aurora
 func (conn *AuroraConnector) SendSync(requestOBJ *CenterRequest) (*CenterResponse, error) {
 	var err error

@@ -52,7 +52,7 @@ func TestSendSyncWithGroup(t *testing.T) {
 			&addTask2,
 		},
 		SleepDuration:   rand.Intn(1000),
-		SendConcurrency: 2,
+		SendConcurrency: 2, // max counts per send subtask
 	}
 	responseOBJ, err := connector.SendSync(requestOBJ)
 	assert.NoError(t, err)
@@ -76,8 +76,7 @@ func TestSendSyncWithChain(t *testing.T) {
 			&addTask2,
 			&multiplyTask0,
 		},
-		SleepDuration:   rand.Intn(1000),
-		SendConcurrency: 3,
+		SleepDuration: rand.Intn(1000),
 	}
 	responseOBJ, err := connector.SendSync(requestOBJ)
 	assert.NoError(t, err)

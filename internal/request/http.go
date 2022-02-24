@@ -60,7 +60,7 @@ func (f *CenterRequest) Inject(r *http.Request) (err error) {
 	}
 	session, err := store.Get(r, "aurora_session")
 	if session.IsNew {
-		return errors.New("Read session from request exception")
+		return errors.New("Read session from request exceptly")
 	}
 	f.User = session.Values["User"].(string)
 	f.UUID = session.Values["UUID"].(string)

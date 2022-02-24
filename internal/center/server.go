@@ -129,43 +129,6 @@ func (server *Server) GetRegisteredTask(name string) (interface{}, error) {
 	return taskFunc, nil
 }
 
-// SendChordCallback will extract trace context and return a new span from signatuire.ChordCallback
-func (server *Server) SendChordCallback(signature *tasks.Signature) (*result.AsyncResult, error) {
-	// Try to extract the span context from the carrier.
-	span := tracing.StartSpanFromHeaders(signature.Headers, "SendChordCallback")
-	defer span.Finish()
-	// tag the span with some info about the signature
-	tracing.AnnotateSpanWithSignatureInfo(span, signature)
-	// update signature`s span info into now span
-	signature.Headers = tracing.HeadersWithSpan(signature.Headers, span)
-
-	// Make sure result backend is defined
-	if server.backend == nil {
-		return nil, errors.New("Result backend required")
-	}
-
-	// Auto generate a UUID if not set already
-	if signature.UUID == "" {
-		taskID := uuid.New().String()
-		signature.UUID = fmt.Sprintf("task_%v", taskID)
-	}
-
-	// Set initial task state to PENDING
-	if err := server.backend.SetStatePending(signature); err != nil {
-		return nil, fmt.Errorf("Set state pending error: %s", err)
-	}
-
-	if server.prePublishHandler != nil {
-		server.prePublishHandler(signature)
-	}
-
-	if err := server.broker.Publish(context.Background(), signature); err != nil {
-		return nil, fmt.Errorf("Publish message error: %s", err)
-	}
-
-	return result.NewAsyncResult(signature, server.backend), nil
-}
-
 // SendTaskWithContext will inject the trace context in the signature headers before publishing it
 func (server *Server) SendTaskWithContext(ctx context.Context, signature *tasks.Signature) (*result.AsyncResult, error) {
 	span, _ := opentracing.StartSpanFromContext(ctx, "SendTask", tracing.ProducerOption(), tracing.AuroraTag)
@@ -369,6 +332,43 @@ func (server *Server) SendChordWithContext(ctx context.Context, chord *tasks.Cho
 // SendChord triggers a group of parallel tasks with a callback
 func (server *Server) SendChord(chord *tasks.Chord, sendConcurrency int) (*result.ChordAsyncResult, error) {
 	return server.SendChordWithContext(context.Background(), chord, sendConcurrency)
+}
+
+// SendChordCallback will extract trace context and return a new span from signatuire.ChordCallback
+func (server *Server) SendChordCallback(signature *tasks.Signature) (*result.AsyncResult, error) {
+	// Try to extract the span context from the carrier.
+	span := tracing.StartSpanFromHeaders(signature.Headers, "SendChordCallback")
+	defer span.Finish()
+	// tag the span with some info about the signature
+	tracing.AnnotateSpanWithSignatureInfo(span, signature)
+	// update signature`s span info into now span
+	signature.Headers = tracing.HeadersWithSpan(signature.Headers, span)
+
+	// Make sure result backend is defined
+	if server.backend == nil {
+		return nil, errors.New("Result backend required")
+	}
+
+	// Auto generate a UUID if not set already
+	if signature.UUID == "" {
+		taskID := uuid.New().String()
+		signature.UUID = fmt.Sprintf("task_%v", taskID)
+	}
+
+	// Set initial task state to PENDING
+	if err := server.backend.SetStatePending(signature); err != nil {
+		return nil, fmt.Errorf("Set state pending error: %s", err)
+	}
+
+	if server.prePublishHandler != nil {
+		server.prePublishHandler(signature)
+	}
+
+	if err := server.broker.Publish(context.Background(), signature); err != nil {
+		return nil, fmt.Errorf("Publish message error: %s", err)
+	}
+
+	return result.NewAsyncResult(signature, server.backend), nil
 }
 
 // GetRegisteredTaskNames returns slice of registered task names
