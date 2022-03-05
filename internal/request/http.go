@@ -10,30 +10,31 @@ import (
 )
 
 type CenterRequest struct {
-	UUID            string             `json:"uuid"`    // user id
-	User            string             `json:"user"`    // user name
-	BatchID         string             `json:"batchId"` // unique id for request
-	Timestamp       int64              `json:"timestamp" validate:"required"`
-	TaskType        string             `json:"taskType" validate:"required,oneof='task' 'group' 'chord' 'chain'"`
-	Signatures      []*tasks.Signature `json:"signatures" validate:"required,gt=0"`
-	SleepDuration   int                `json:"sleepDuration" validate:"required,min=5,max=5000"` // min=5ms max=5s
-	SendConcurrency int                `json:"sendConcurrency" validate:"min=0,max=10"`
-	CallBack        *tasks.Signature   `json:"callBack" validate:"required_if=TaskType chord"`
+	UUID            string             `json:"UUID" validate:"max=50"`    // user id
+	User            string             `json:"User" validate:"max=15"`    // user name
+	BatchID         string             `json:"BatchID" validate:"max=50"` // unique id for request
+	Timestamp       int64              `json:"Timestamp" validate:"required"`
+	TaskType        string             `json:"TaskType" validate:"required,oneof='task' 'group' 'chord' 'chain'"`
+	Signatures      []*tasks.Signature `json:"Signatures" validate:"required,gt=0"`
+	TimeoutDuration int                `json:"TimeoutDuration" validate:"required,min=100,max=5000"`
+	SleepDuration   int                `json:"SleepDuration" validate:"required,min=50,max=500"`
+	SendConcurrency int                `json:"SendConcurrency" validate:"min=0,max=10"`
+	CallBack        *tasks.Signature   `json:"CallBack" validate:"required_if=TaskType chord"`
 }
 
 type CenterResponse struct {
-	UUID          string          `json:"uuid"` // user id
-	User          string          `json:"user"`
-	BatchID       string          `json:"batchId"` // unique id for request
-	Timestamp     int64           `json:"timestamp"`
-	TaskType      string          `json:"taskType"`
-	TaskResponses []*TaskResponse `json:"taskResponse"`
+	UUID          string          `json:"UUID"` // user id
+	User          string          `json:"User"`
+	BatchID       string          `json:"BatchID"` // unique id for request
+	Timestamp     int64           `json:"Timestamp"`
+	TaskType      string          `json:"TaskType"`
+	TaskResponses []*TaskResponse `json:"TaskResponses"`
 }
 
 type TaskResponse struct {
-	Results    []interface{}      `json:"results"`
-	Signatures []*tasks.Signature `json:"signatures"`
-	CallBack   *tasks.Signature   `json:"callBack"`
+	Results    []interface{}      `json:"Results"`
+	Signatures []*tasks.Signature `json:"Signatures"`
+	CallBack   *tasks.Signature   `json:"CallBack"`
 }
 
 // use a single instance of Validate, it caches struct info

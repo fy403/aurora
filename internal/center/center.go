@@ -20,6 +20,7 @@ import (
 	// "github.com/prometheus/client_golang/prometheus/promhttp"
 	"aurora/internal/auth"
 	mongobackend "aurora/internal/backends/mongo"
+	"aurora/internal/backends/result"
 	amqpbroker "aurora/internal/brokers/amqp"
 	"aurora/internal/config"
 	eagerlock "aurora/internal/locks/eager"
@@ -52,7 +53,119 @@ func (this *Center) HTTPAuth(w http.ResponseWriter, r *http.Request) {
 	auth.Login(w, r)
 }
 
-func (this *Center) HTTPTasks(w http.ResponseWriter, r *http.Request) {
+func (this *Center) HTTPTasksTouch(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		http.Error(w, "Must use POST", http.StatusBadRequest)
+		return
+	}
+
+	if ok := auth.Authentication(w, r); !ok {
+		return
+	}
+
+	strByte, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, "Read req.Body failed", http.StatusBadRequest)
+		return
+	}
+
+	requestOBJ := &request.CenterRequest{}
+	decoder := json.NewDecoder(bytes.NewReader(strByte))
+	decoder.UseNumber()
+
+	if err := decoder.Decode(requestOBJ); err != nil {
+		http.Error(w, fmt.Sprintf("Unexpected request Unmarshal format: %v", requestOBJ), http.StatusBadRequest)
+		return
+	}
+
+	if err := requestOBJ.Validate(); err != nil {
+		http.Error(w, fmt.Sprintf("Failed to validate format: %v", requestOBJ), http.StatusBadRequest)
+		return
+	}
+
+	if err := requestOBJ.Inject(r); err != nil {
+		http.Error(w, err.Error(), http.StatusBadGateway)
+		return
+	}
+
+	/*
+	 * Send the corresponding query according to the TaskType matching result
+	 */
+	responseOBJ := request.CenterResponse{
+		UUID:          requestOBJ.UUID,
+		User:          requestOBJ.User,
+		BatchID:       requestOBJ.BatchID,
+		Timestamp:     time.Now().Local().Unix(),
+		TaskType:      requestOBJ.TaskType,
+		TaskResponses: []*request.TaskResponse{},
+	}
+	switch v := requestOBJ.TaskType; v {
+	case "task":
+		asyncResult := result.NewAsyncResult(requestOBJ.Signatures[0], this.server.backend)
+		results, err := asyncResult.Touch()
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Task has failed with error: %s", err.Error()), http.StatusBadGateway)
+			return
+		}
+		responseOBJ.TaskResponses = append(responseOBJ.TaskResponses, &request.TaskResponse{
+			Results:    tasks.InterfaceReadableResults(results),
+			Signatures: requestOBJ.Signatures,
+		})
+	case "group":
+		for _, signature := range requestOBJ.Signatures {
+			asyncResult := result.NewAsyncResult(signature, this.server.backend)
+			results, err := asyncResult.Touch()
+			if err != nil {
+				http.Error(w, fmt.Sprintf("Task has failed with error: %s", err.Error()), http.StatusBadGateway)
+				return
+			}
+			responseOBJ.TaskResponses = append(responseOBJ.TaskResponses, &request.TaskResponse{
+				Results: tasks.InterfaceReadableResults(results),
+				Signatures: []*tasks.Signature{
+					signature,
+				},
+			})
+		}
+	case "chord":
+		chordAsyncResult := result.NewChordAsyncResult(requestOBJ.Signatures, requestOBJ.CallBack, this.server.backend)
+		results, err := chordAsyncResult.GetChordAyncResults().Touch()
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Task has failed with error: %s", err.Error()), http.StatusBadGateway)
+			return
+		}
+		responseOBJ.TaskResponses = append(responseOBJ.TaskResponses, &request.TaskResponse{
+			Results:    tasks.InterfaceReadableResults(results),
+			Signatures: requestOBJ.Signatures,
+			CallBack:   requestOBJ.CallBack,
+		})
+	case "chain":
+		chainAsyncResult := result.NewChainAsyncResult(requestOBJ.Signatures, this.server.backend)
+		last := len(chainAsyncResult.GetAsyncResults()) - 1
+		results, err := chainAsyncResult.GetAsyncResults()[last].Touch()
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Task has failed with error: %s", err.Error()), http.StatusBadGateway)
+			return
+		}
+		responseOBJ.TaskResponses = append(responseOBJ.TaskResponses, &request.TaskResponse{
+			Results:    tasks.InterfaceReadableResults(results),
+			Signatures: requestOBJ.Signatures,
+		})
+	default:
+		err := errors.New("Unexpected task type: " + v)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	data, err := json.Marshal(responseOBJ)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to json.Marshal responseOBJ: %v", responseOBJ), http.StatusBadGateway)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(data))
+}
+
+func (this *Center) HTTPTasksSend(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		http.Error(w, "Must use POST", http.StatusBadRequest)
 		return
@@ -111,40 +224,36 @@ func (this *Center) HTTPTasks(w http.ResponseWriter, r *http.Request) {
 	log.Runtime().Infof("Starting batch: %s", batchID)
 	time.Local, _ = time.LoadLocation("Asia/Beijing")
 
+	responseOBJ := request.CenterResponse{
+		UUID:          requestOBJ.UUID,
+		User:          requestOBJ.User,
+		BatchID:       requestOBJ.BatchID,
+		Timestamp:     time.Now().Local().Unix(),
+		TaskType:      requestOBJ.TaskType,
+		TaskResponses: []*request.TaskResponse{},
+	}
+
 	switch v := requestOBJ.TaskType; v {
 	case "task":
-		asyncResult, err := this.server.SendTaskWithContext(ctx, requestOBJ.Signatures[0])
+		asyncResultPtr, err := this.server.SendTaskWithContext(ctx, requestOBJ.Signatures[0])
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Could not send task: %s", err.Error()), http.StatusExpectationFailed)
 			return
 		}
-		results, err := asyncResult.Get(time.Millisecond * time.Duration(requestOBJ.SleepDuration))
-		if err != nil {
-			http.Error(w, fmt.Sprintf("Getting task result failed with error: %s", err.Error()), http.StatusBadGateway)
+		// Try to obtain results,In time limit
+		results, err := asyncResultPtr.GetWithTimeout(time.Duration(requestOBJ.TimeoutDuration)*time.Millisecond, time.Duration(requestOBJ.SleepDuration)*time.Millisecond)
+		if err != nil && err != result.ErrTimeoutReached {
+			http.Error(w, fmt.Sprintf("Task has failed with error: %s", err.Error()), http.StatusBadGateway)
 			return
 		}
-		responseOBJ := request.CenterResponse{
-			UUID:      requestOBJ.UUID,
-			User:      requestOBJ.User,
-			BatchID:   requestOBJ.BatchID,
-			Timestamp: time.Now().Local().Unix(),
-			TaskType:  requestOBJ.TaskType,
-			TaskResponses: []*request.TaskResponse{
-				{
-					Results: tasks.InterfaceReadableResults(results),
-					Signatures: []*tasks.Signature{
-						asyncResult.Signature,
-					},
-				},
+		// Clean sensitive information
+		tasks.CleanSignatureSensitiveInfo(asyncResultPtr.Signature)
+		responseOBJ.TaskResponses = append(responseOBJ.TaskResponses, &request.TaskResponse{
+			Results: tasks.InterfaceReadableResults(results),
+			Signatures: []*tasks.Signature{
+				asyncResultPtr.Signature,
 			},
-		}
-		data, err := json.Marshal(responseOBJ)
-		if err != nil {
-			http.Error(w, fmt.Sprintf("Failed to json.Marshal responseOBJ: %v", responseOBJ), http.StatusBadGateway)
-			return
-		}
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(data))
+		})
 	case "group":
 		group, err := tasks.NewGroup(requestOBJ.Signatures...)
 		if err != nil {
@@ -157,35 +266,22 @@ func (this *Center) HTTPTasks(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, fmt.Sprintf("Could not send group: %s", err.Error()), http.StatusBadGateway)
 			return
 		}
-		responseOBJ := request.CenterResponse{
-			UUID:          requestOBJ.UUID,
-			User:          requestOBJ.User,
-			BatchID:       requestOBJ.BatchID,
-			Timestamp:     time.Now().Local().Unix(),
-			TaskType:      requestOBJ.TaskType,
-			TaskResponses: []*request.TaskResponse{},
-		}
-		for _, asyncResult := range asyncResults {
-			results, err := asyncResult.Get(time.Millisecond * time.Duration(requestOBJ.SleepDuration))
-			if err != nil {
-				http.Error(w, fmt.Sprintf("Getting task result failed with error: %s", err.Error()), http.StatusBadGateway)
-				return
+		size := len(asyncResults)
+		for _, asyncResultPtr := range asyncResults {
+			// Try to obtain results,In time limit
+			results, err := asyncResultPtr.GetWithTimeout(time.Duration(requestOBJ.TimeoutDuration/size)*time.Millisecond, time.Duration(requestOBJ.SleepDuration)*time.Millisecond)
+			if err != nil && err != result.ErrTimeoutReached {
+				http.Error(w, fmt.Sprintf("Task has failed with error: %s", err.Error()), http.StatusBadGateway)
 			}
+			// Clean sensitive information
+			tasks.CleanSignatureSensitiveInfo(asyncResultPtr.Signature)
 			responseOBJ.TaskResponses = append(responseOBJ.TaskResponses, &request.TaskResponse{
 				Results: tasks.InterfaceReadableResults(results),
 				Signatures: []*tasks.Signature{
-					asyncResult.Signature,
+					asyncResultPtr.Signature,
 				},
 			})
 		}
-
-		data, err := json.Marshal(responseOBJ)
-		if err != nil {
-			http.Error(w, fmt.Sprintf("Failed to json.Marshal responseOBJ: %v", responseOBJ), http.StatusBadGateway)
-			return
-		}
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(data))
 	case "chord":
 		group, err := tasks.NewGroup(requestOBJ.Signatures...)
 		if err != nil {
@@ -205,32 +301,22 @@ func (this *Center) HTTPTasks(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		results, err := chordAsyncResult.Get(time.Millisecond * time.Duration(requestOBJ.SleepDuration))
-		if err != nil {
-			http.Error(w, fmt.Sprintf("Getting chord result failed with error: %s", err.Error()), http.StatusBadGateway)
-			return
+		var signatures []*tasks.Signature
+		for _, asyncResultPtr := range chordAsyncResult.GetGroupAsyncResults() {
+			// Clean sensitive information
+			tasks.CleanSignatureSensitiveInfo(asyncResultPtr.Signature)
+			signatures = append(signatures, asyncResultPtr.Signature)
 		}
-		responseOBJ := request.CenterResponse{
-			UUID:      requestOBJ.UUID,
-			User:      requestOBJ.User,
-			BatchID:   requestOBJ.BatchID,
-			Timestamp: time.Now().Local().Unix(),
-			TaskType:  requestOBJ.TaskType,
-			TaskResponses: []*request.TaskResponse{
-				{
-					Results:    tasks.InterfaceReadableResults(results),
-					Signatures: requestOBJ.Signatures,
-					CallBack:   requestOBJ.CallBack,
-				},
-			},
+		// Try to obtain results,In time limit
+		results, err := chordAsyncResult.GetWithTimeout(time.Duration(requestOBJ.TimeoutDuration)*time.Millisecond, time.Duration(requestOBJ.SleepDuration)*time.Millisecond)
+		if err != nil && err != result.ErrTimeoutReached {
+			http.Error(w, fmt.Sprintf("Task has failed with error: %s", err.Error()), http.StatusBadGateway)
 		}
-		data, err := json.Marshal(responseOBJ)
-		if err != nil {
-			http.Error(w, fmt.Sprintf("Failed to json.Marshal responseOBJ: %v", responseOBJ), http.StatusBadGateway)
-			return
-		}
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(data))
+		responseOBJ.TaskResponses = append(responseOBJ.TaskResponses, &request.TaskResponse{
+			Results:    tasks.InterfaceReadableResults(results),
+			Signatures: signatures,
+			CallBack:   chordAsyncResult.GetChordAyncResults().Signature,
+		})
 	case "chain":
 		chain, err := tasks.NewChain(requestOBJ.Signatures...)
 		if err != nil {
@@ -244,31 +330,21 @@ func (this *Center) HTTPTasks(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		results, err := chainAsyncResult.Get(time.Millisecond * time.Duration(requestOBJ.SleepDuration))
-		if err != nil {
-			http.Error(w, fmt.Sprintf("Getting chain result failed with error: %s", err.Error()), http.StatusBadGateway)
-			return
+		var signatures []*tasks.Signature
+		for _, asyncResultPtr := range chainAsyncResult.GetAsyncResults() {
+			// Clean sensitive information
+			tasks.CleanSignatureSensitiveInfo(asyncResultPtr.Signature)
+			signatures = append(signatures, asyncResultPtr.Signature)
 		}
-		responseOBJ := request.CenterResponse{
-			UUID:      requestOBJ.UUID,
-			User:      requestOBJ.User,
-			BatchID:   requestOBJ.BatchID,
-			Timestamp: time.Now().Local().Unix(),
-			TaskType:  requestOBJ.TaskType,
-			TaskResponses: []*request.TaskResponse{
-				{
-					Results:    tasks.InterfaceReadableResults(results),
-					Signatures: requestOBJ.Signatures,
-				},
-			},
+		// Try to obtain results,In time limit
+		results, err := chainAsyncResult.GetWithTimeout(time.Duration(requestOBJ.TimeoutDuration)*time.Millisecond, time.Duration(requestOBJ.SleepDuration)*time.Millisecond)
+		if err != nil && err != result.ErrTimeoutReached {
+			http.Error(w, fmt.Sprintf("Task has failed with error: %s", err.Error()), http.StatusBadGateway)
 		}
-		data, err := json.Marshal(responseOBJ)
-		if err != nil {
-			http.Error(w, fmt.Sprintf("Failed to json.Marshal responseOBJ: %v", responseOBJ), http.StatusBadGateway)
-			return
-		}
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(data))
+		responseOBJ.TaskResponses = append(responseOBJ.TaskResponses, &request.TaskResponse{
+			Results:    tasks.InterfaceReadableResults(results),
+			Signatures: signatures,
+		})
 	default:
 		err := errors.New("Unexpected task type: " + v)
 		span.SetTag("error", true)
@@ -278,12 +354,31 @@ func (this *Center) HTTPTasks(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+
+	data, err := json.Marshal(responseOBJ)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to json.Marshal responseOBJ: %v", responseOBJ), http.StatusBadGateway)
+		return
+	}
+
+	hasFinished := true
+	for _, tasksResponse := range responseOBJ.TaskResponses {
+		if len(tasksResponse.Results) == 0 {
+			hasFinished = false
+		}
+	}
+	if hasFinished {
+		w.WriteHeader(http.StatusOK)
+	} else {
+		w.WriteHeader(http.StatusPartialContent)
+	}
+	w.Write([]byte(data))
 }
 
 func (this *Center) StartHttpServer() (err error) {
 	var port = this.cfg.HTTP.Port
 	if port == "" {
-		port = ":80"
+		port = ":4332"
 	}
 	l, err := net.Listen("tcp", port)
 	if err != nil {
@@ -292,7 +387,8 @@ func (this *Center) StartHttpServer() (err error) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", this.HTTPHealth)
 	mux.HandleFunc("/auth", this.HTTPAuth)
-	mux.HandleFunc("/tasks", this.HTTPTasks)
+	mux.HandleFunc("/tasks/send", this.HTTPTasksSend)
+	mux.HandleFunc("/tasks/touch", this.HTTPTasksTouch)
 	// http.Handle("/metrics", promhttp.Handler())
 	this.srv = &http.Server{Handler: mux}
 	go this.srv.Serve(l)

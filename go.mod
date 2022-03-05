@@ -7,7 +7,7 @@ require (
 	github.com/BurntSushi/toml v0.3.1
 	github.com/aws/aws-sdk-go v1.42.52
 	github.com/go-redis/redis/v8 v8.6.0
-	github.com/google/uuid v1.2.0
+	github.com/google/uuid v1.3.0
 	github.com/gorilla/sessions v1.2.1
 	github.com/mae-pax/logger v0.3.0
 	github.com/robfig/cron/v3 v3.0.1
@@ -38,6 +38,7 @@ require (
 	github.com/gorilla/securecookie v1.1.1 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/klauspost/compress v1.13.6 // indirect
+	github.com/ledongthuc/pdf v0.0.0-20220302134840-0c2507a12d80 // indirect
 	github.com/leodido/go-urn v1.2.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/uber/jaeger-lib v2.4.1+incompatible // indirect
@@ -64,6 +65,7 @@ require (
 require (
 	github.com/fastly/go-utils v0.0.0-20180712184237-d95a45783239 // indirect
 	github.com/fsnotify/fsnotify v1.5.1 // indirect
+	github.com/fy403/gotenberg-client-go v0.0.0-20220305034606-260a858e763e
 	github.com/getsentry/sentry-go v0.6.1 // indirect
 	github.com/go-playground/validator/v10 v10.10.0
 	github.com/hashicorp/hcl v1.0.0 // indirect

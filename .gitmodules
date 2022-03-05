@@ -1,0 +1,6 @@
+[submodule "client/go"]
+	path = client/go
+	url = git@github.com:fy403/aurora-client-go.git
+[submodule "client/php"]
+	path = client/php
+	url = git@github.com:fy403/aurora-client-php.git

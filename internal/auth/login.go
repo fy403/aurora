@@ -13,14 +13,14 @@ import (
 )
 
 type AuthRequest struct {
-	Name     string `json:"name" validate:"required,gt=0,lt=15"`
-	Password string `json:"password" validate:"required,gt=0,lt=30"`
+	Name     string `json:"Name" validate:"required,gt=0,lt=15"`
+	Password string `json:"Password" validate:"required,gt=0,lt=30"`
 }
 
 type AuthResponse struct {
-	Message string `json:"message"`
-	Name    string `json:"name"`
-	UUID    string `json:"uuid"`
+	Message string `json:"Message"`
+	Name    string `json:"Name"`
+	UUID    string `json:"UUID"`
 }
 
 var validate *validator.Validate
@@ -89,7 +89,7 @@ func Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	responseOBJ := &AuthResponse{
-		Message: "login successful",
+		Message: "login successfully",
 		Name:    requestOBJ.Name,
 		UUID:    uuid,
 	}

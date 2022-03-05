@@ -20,8 +20,6 @@ import (
 	"syscall"
 	"time"
 
-	"aurora/internal/backends/amqp"
-
 	"github.com/opentracing/opentracing-go"
 )
 
@@ -338,9 +336,9 @@ func (worker *Worker) taskSucceeded(signature *tasks.Signature, taskResults []*t
 	}
 
 	// Defer purging of group meta queue if we are using AMQP backend
-	if worker.hasAMQPBackend() {
-		defer worker.server.GetBackend().PurgeGroupMeta(signature.GroupUUID)
-	}
+	// if worker.hasAMQPBackend() {
+	// 	defer worker.server.GetBackend().PurgeGroupMeta(signature.GroupUUID)
+	// }
 
 	// Trigger chord callback
 	shouldTrigger, err := worker.server.GetBackend().TriggerChord(signature.GroupUUID)
@@ -426,10 +424,10 @@ func (worker *Worker) taskFailed(signature *tasks.Signature, taskErr error) erro
 }
 
 // Returns true if the worker uses AMQP backend
-func (worker *Worker) hasAMQPBackend() bool {
-	_, ok := worker.server.GetBackend().(*amqp.Backend)
-	return ok
-}
+// func (worker *Worker) hasAMQPBackend() bool {
+// 	_, ok := worker.server.GetBackend().(*amqp.Backend)
+// 	return ok
+// }
 
 // SetErrorHandler sets a custom error handler for task errors
 // A default behavior is just to log the error after all the retry attempts fail

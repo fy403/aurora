@@ -14,8 +14,9 @@ import (
 	amqpbroker "aurora/internal/brokers/amqp"
 	"aurora/internal/center"
 	"aurora/internal/config"
-	exampletasks "aurora/internal/example/tasks"
 	eagerlock "aurora/internal/locks/eager"
+	"aurora/internal/model/example"
+	"aurora/internal/model/pdfinfo"
 	"aurora/internal/opentracing/tracers"
 
 	"aurora/internal/log"
@@ -89,7 +90,7 @@ func (this *Worker) Init() (err error) {
 		return
 	}
 
-	// Create server instance
+	// Create broker, backend instance
 	broker := amqpbroker.New(cfg)
 	backend, err := mongobackend.New(cfg)
 	if err != nil {
@@ -107,18 +108,20 @@ func (this *Worker) Init() (err error) {
 		return
 	}
 
+	// Create server instance
 	lock := eagerlock.New()
 	this.server = center.NewServer(cfg, broker, backend, lock, true)
 	// Register example tasks
 	tasksMap := map[string]interface{}{
-		"add":               exampletasks.Add,
-		"multiply":          exampletasks.Multiply,
-		"sum_ints":          exampletasks.SumInts,
-		"sum_floats":        exampletasks.SumFloats,
-		"concat":            exampletasks.Concat,
-		"split":             exampletasks.Split,
-		"panic_task":        exampletasks.PanicTask,
-		"long_running_task": exampletasks.LongRunningTask,
+		"add":               example.Add,
+		"multiply":          example.Multiply,
+		"sum_ints":          example.SumInts,
+		"sum_floats":        example.SumFloats,
+		"concat":            example.Concat,
+		"split":             example.Split,
+		"panic_task":        example.PanicTask,
+		"long_running_task": example.LongRunningTask,
+		"pdf_pages":         pdfinfo.PdfPages,
 	}
 	err = this.server.RegisterTasks(tasksMap)
 	if err != nil {
@@ -134,6 +137,7 @@ func (this *Worker) Init() (err error) {
 		this.ConsumerTag = hostname
 	}
 	this.Concurrency = cfg.Concurrency
+	// Required, setting worker subscribe queue
 	this.Queue = cfg.Queue
 
 	// Set task state transition handler

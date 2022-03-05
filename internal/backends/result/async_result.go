@@ -254,3 +254,18 @@ func (chordAsyncResult *ChordAsyncResult) GetWithTimeout(timeoutDuration, sleepD
 		}
 	}
 }
+
+// GetGroupAsyncResults returns result of a chord`s groupAsyncResults
+func (chordAsyncResult *ChordAsyncResult) GetGroupAsyncResults() []*AsyncResult {
+	return chordAsyncResult.groupAsyncResults
+}
+
+// GetChordAyncResults returns result of a chord`s chordAyncResults
+func (chordAsyncResult *ChordAsyncResult) GetChordAyncResults() *AsyncResult {
+	return chordAsyncResult.chordAsyncResult
+}
+
+// GetAsyncResults returns result of a chain`s asyncResults
+func (chainAsyncResults *ChainAsyncResult) GetAsyncResults() []*AsyncResult {
+	return chainAsyncResults.asyncResults
+}

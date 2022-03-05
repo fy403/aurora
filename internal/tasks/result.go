@@ -46,3 +46,13 @@ func InterfaceReadableResults(results []reflect.Value) []interface{} {
 	}
 	return readableResults
 }
+
+func CleanSignatureSensitiveInfo(signaturePtr *Signature) {
+	if signaturePtr == nil {
+		return
+	}
+	signaturePtr.OnSuccess = nil
+	signaturePtr.OnError = nil
+	signaturePtr.ChordCallback = nil
+	signaturePtr.Headers = nil
+}
