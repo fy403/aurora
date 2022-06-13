@@ -13,7 +13,7 @@ import (
 func PdfPages(args ...string) (int64, error) {
 	url, ok := os.LookupEnv("GOTENBERG_URL")
 	if !ok {
-		url = "http://loclhost:3000/forms/libreoffice/convert"
+		url = "http://localhost:3000/forms/libreoffice/convert"
 		log.Runtime().Infof("Can`t find GOTENBERG_URL in env, use default url: %s", url)
 	}
 	formKey := "files"

@@ -204,22 +204,22 @@ func (b *Broker) Publish(ctx context.Context, signature *tasks.Signature) error 
 		}
 	}
 
-	queue := b.GetConfig().DefaultQueue
+	queueName := b.GetConfig().DefaultQueue
 	bindingKey := b.GetConfig().AMQP.BindingKey // queue binding key
-	if b.isDirectExchange() {
-		queue = signature.RoutingKey
-		bindingKey = signature.RoutingKey
-	}
+	// if b.isDirectExchange() {
+	// 	queue = signature.RoutingKey
+	// 	bindingKey = signature.RoutingKey
+	// }
 
 	connection, err := b.GetOrOpenConnection(
-		queue,
+		queueName,
 		bindingKey, // queue binding key
 		nil,        // exchange declare args
 		amqp.Table(b.GetConfig().AMQP.QueueDeclareArgs), // queue declare args
 		amqp.Table(b.GetConfig().AMQP.QueueBindingArgs), // queue binding args
 	)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to get a connection for queue %s", queue)
+		return errors.Wrapf(err, "Failed to get a connection for queue %s", queueName)
 	}
 
 	channel := connection.channel
@@ -424,14 +424,14 @@ func (b *Broker) AdjustRoutingKey(s *tasks.Signature) {
 		return
 	}
 
-	if b.isDirectExchange() {
-		// The routing algorithm behind a direct exchange is simple - a message goes
-		// to the queues whose binding key exactly matches the routing key of the message.
-		s.RoutingKey = b.GetConfig().AMQP.BindingKey
-		return
-	}
+	// if b.isDirectExchange() {
+	// 	// The routing algorithm behind a direct exchange is simple - a message goes
+	// 	// to the queues whose binding key exactly matches the routing key of the message.
+	// 	s.RoutingKey = b.GetConfig().AMQP.BindingKey
+	// 	return
+	// }
 
-	s.RoutingKey = b.GetConfig().DefaultQueue
+	s.RoutingKey = b.GetConfig().AMQP.BindingKey
 }
 
 // Helper type for GetPendingTasks to accumulate signatures

@@ -1,13 +1,14 @@
 {
     "REQUEST": {
-        "uuid": "2343543543",
-        "batchId": "1234324",
-        "timestamp": 1645168456,
-        "taskType": "chord",
-        "signatures": [
+        "UUID": "",
+        "User": "",
+        "BatchID": "",
+        "Timestamp": 1646462824,
+        "TaskType": "chord",
+        "Signatures": [
             {
                 "UUID": "",
-                "Name": "add",
+                "Name": "pdf_pages",
                 "RoutingKey": "",
                 "ETA": null,
                 "GroupUUID": "",
@@ -15,13 +16,13 @@
                 "Args": [
                     {
                         "Name": "",
-                        "Type": "int64",
-                        "Value": 1
+                        "Type": "string",
+                        "Value": "https://www.rfc-editor.org/rfc/pdfrfc/rfc3510.txt.pdf"
                     },
                     {
                         "Name": "",
-                        "Type": "int64",
-                        "Value": 1
+                        "Type": "string",
+                        "Value": "\\Users\\Administrator\\print\\file.xlsx"
                     }
                 ],
                 "Headers": null,
@@ -39,7 +40,7 @@
             },
             {
                 "UUID": "",
-                "Name": "add",
+                "Name": "pdf_pages",
                 "RoutingKey": "",
                 "ETA": null,
                 "GroupUUID": "",
@@ -47,13 +48,13 @@
                 "Args": [
                     {
                         "Name": "",
-                        "Type": "int64",
-                        "Value": 2
+                        "Type": "string",
+                        "Value": "\\Users\\Administrator\\print\\print_test.pdf"
                     },
                     {
                         "Name": "",
-                        "Type": "int64",
-                        "Value": 2
+                        "Type": "string",
+                        "Value": "\\Users\\Administrator\\print\\Description.doc"
                     }
                 ],
                 "Headers": null,
@@ -70,11 +71,12 @@
                 "IgnoreWhenTaskNotRegistered": false
             }
         ],
-        "sleepDuration": 5,
-        "sendConcurrency": 10,
-        "callBack": {
+        "TimeoutDuration": 3081,
+        "SleepDuration": 137,
+        "SendConcurrency": 2,
+        "CallBack": {
             "UUID": "",
-            "Name": "multiply",
+            "Name": "sum_ints",
             "RoutingKey": "",
             "ETA": null,
             "GroupUUID": "",
@@ -94,151 +96,293 @@
             "IgnoreWhenTaskNotRegistered": false
         }
     },
-    "RESPONSE": {
-        "uuid": "2343543543",
-        "batchId": "0720df36-3a42-4347-8b73-2adf012e256c",
-        "timestamp": 1645190535,
-        "taskType": "chord",
-        "taskResponse": [
+    "RESPONSE-206": {
+        "UUID": "33a6dad1-5aa1-475d-960f-fb2c99abec5e",
+        "User": "admin",
+        "BatchID": "a6e6d5cb-bcdb-4f6f-8abd-969cecd7a14c",
+        "Timestamp": 1646465013,
+        "TaskType": "chord",
+        "TaskResponses": [
             {
-                "results": [
-                    8
-                ],
-                "signatures": [
+                "Results": [],
+                "Signatures": [
                     {
-                        "UUID": "task_75bb95d6-b099-4eac-bd24-41861afc2ab3",
-                        "Name": "add",
-                        "RoutingKey": "aurora_task",
+                        "UUID": "task_c69b3a24-415f-409c-b69f-25412bb6ee5a",
+                        "Name": "pdf_pages",
+                        "RoutingKey": "aurora_tasks",
                         "ETA": null,
-                        "GroupUUID": "group_77dd734b-75a1-45fb-b915-cae67fdf1783",
+                        "GroupUUID": "group_2bb209f7-8b3e-490b-a2c9-3fde60608507",
                         "GroupTaskCount": 2,
                         "Args": [
                             {
                                 "Name": "",
-                                "Type": "int64",
-                                "Value": 1
+                                "Type": "string",
+                                "Value": "https://www.rfc-editor.org/rfc/pdfrfc/rfc3510.txt.pdf"
                             },
                             {
                                 "Name": "",
-                                "Type": "int64",
-                                "Value": 1
+                                "Type": "string",
+                                "Value": "\\Users\\Administrator\\print\\file.xlsx"
                             }
                         ],
-                        "Headers": {
-                            "uber-trace-id": "7b7a5e6511fa1da2:409437239afc23ae:7b7a5e6511fa1da2:1",
-                            "uberctx-batch.id": "0720df36-3a42-4347-8b73-2adf012e256c",
-                            "uberctx-user.uuid": "2343543543"
-                        },
+                        "Headers": null,
                         "Priority": 0,
                         "Immutable": false,
                         "RetryCount": 0,
                         "RetryTimeout": 0,
                         "OnSuccess": null,
                         "OnError": null,
-                        "ChordCallback": {
-                            "UUID": "chord_21737008-39c7-47c8-9cfc-f0269a00cf3f",
-                            "Name": "multiply",
-                            "RoutingKey": "",
-                            "ETA": null,
-                            "GroupUUID": "",
-                            "GroupTaskCount": 0,
-                            "Args": null,
-                            "Headers": {
-                                "uber-trace-id": "7b7a5e6511fa1da2:15cd8109630036ba:7b7a5e6511fa1da2:1",
-                                "uberctx-batch.id": "0720df36-3a42-4347-8b73-2adf012e256c",
-                                "uberctx-user.uuid": "2343543543"
-                            },
-                            "Priority": 0,
-                            "Immutable": false,
-                            "RetryCount": 0,
-                            "RetryTimeout": 0,
-                            "OnSuccess": null,
-                            "OnError": null,
-                            "ChordCallback": null,
-                            "BrokerMessageGroupId": "",
-                            "SQSReceiptHandle": "",
-                            "StopTaskDeletionOnError": false,
-                            "IgnoreWhenTaskNotRegistered": false
-                        },
+                        "ChordCallback": null,
                         "BrokerMessageGroupId": "",
                         "SQSReceiptHandle": "",
                         "StopTaskDeletionOnError": false,
                         "IgnoreWhenTaskNotRegistered": false
                     },
                     {
-                        "UUID": "task_ee1477b1-3a47-40f5-af73-edbdf20363ca",
-                        "Name": "add",
-                        "RoutingKey": "aurora_task",
+                        "UUID": "task_2a64809f-5f6e-4a86-8ae4-8fa40537475c",
+                        "Name": "pdf_pages",
+                        "RoutingKey": "aurora_tasks",
                         "ETA": null,
-                        "GroupUUID": "group_77dd734b-75a1-45fb-b915-cae67fdf1783",
+                        "GroupUUID": "group_2bb209f7-8b3e-490b-a2c9-3fde60608507",
                         "GroupTaskCount": 2,
                         "Args": [
                             {
                                 "Name": "",
-                                "Type": "int64",
-                                "Value": 2
+                                "Type": "string",
+                                "Value": "\\Users\\Administrator\\print\\print_test.pdf"
                             },
                             {
                                 "Name": "",
-                                "Type": "int64",
-                                "Value": 2
+                                "Type": "string",
+                                "Value": "\\Users\\Administrator\\print\\Description.doc"
                             }
                         ],
-                        "Headers": {
-                            "uber-trace-id": "7b7a5e6511fa1da2:409437239afc23ae:7b7a5e6511fa1da2:1",
-                            "uberctx-batch.id": "0720df36-3a42-4347-8b73-2adf012e256c",
-                            "uberctx-user.uuid": "2343543543"
-                        },
+                        "Headers": null,
                         "Priority": 0,
                         "Immutable": false,
                         "RetryCount": 0,
                         "RetryTimeout": 0,
                         "OnSuccess": null,
                         "OnError": null,
-                        "ChordCallback": {
-                            "UUID": "chord_21737008-39c7-47c8-9cfc-f0269a00cf3f",
-                            "Name": "multiply",
-                            "RoutingKey": "",
-                            "ETA": null,
-                            "GroupUUID": "",
-                            "GroupTaskCount": 0,
-                            "Args": null,
-                            "Headers": {
-                                "uber-trace-id": "7b7a5e6511fa1da2:15cd8109630036ba:7b7a5e6511fa1da2:1",
-                                "uberctx-batch.id": "0720df36-3a42-4347-8b73-2adf012e256c",
-                                "uberctx-user.uuid": "2343543543"
-                            },
-                            "Priority": 0,
-                            "Immutable": false,
-                            "RetryCount": 0,
-                            "RetryTimeout": 0,
-                            "OnSuccess": null,
-                            "OnError": null,
-                            "ChordCallback": null,
-                            "BrokerMessageGroupId": "",
-                            "SQSReceiptHandle": "",
-                            "StopTaskDeletionOnError": false,
-                            "IgnoreWhenTaskNotRegistered": false
-                        },
+                        "ChordCallback": null,
                         "BrokerMessageGroupId": "",
                         "SQSReceiptHandle": "",
                         "StopTaskDeletionOnError": false,
                         "IgnoreWhenTaskNotRegistered": false
                     }
                 ],
-                "callBack": {
-                    "UUID": "chord_21737008-39c7-47c8-9cfc-f0269a00cf3f",
-                    "Name": "multiply",
+                "CallBack": {
+                    "UUID": "chord_5a403019-c29c-4081-8774-d3185832396d",
+                    "Name": "sum_ints",
                     "RoutingKey": "",
                     "ETA": null,
                     "GroupUUID": "",
                     "GroupTaskCount": 0,
                     "Args": null,
                     "Headers": {
-                        "uber-trace-id": "7b7a5e6511fa1da2:15cd8109630036ba:7b7a5e6511fa1da2:1",
-                        "uberctx-batch.id": "0720df36-3a42-4347-8b73-2adf012e256c",
-                        "uberctx-user.uuid": "2343543543"
+                        "uber-trace-id": "77e3dbc7b6ba7123:588e90273576827d:77e3dbc7b6ba7123:1",
+                        "uberctx-batch.id": "a6e6d5cb-bcdb-4f6f-8abd-969cecd7a14c",
+                        "uberctx-user.name": "admin",
+                        "uberctx-user.uuid": "33a6dad1-5aa1-475d-960f-fb2c99abec5e"
                     },
+                    "Priority": 0,
+                    "Immutable": false,
+                    "RetryCount": 0,
+                    "RetryTimeout": 0,
+                    "OnSuccess": null,
+                    "OnError": null,
+                    "ChordCallback": null,
+                    "BrokerMessageGroupId": "",
+                    "SQSReceiptHandle": "",
+                    "StopTaskDeletionOnError": false,
+                    "IgnoreWhenTaskNotRegistered": false
+                }
+            }
+        ]
+    },
+    "Request-Touch": {
+        "UUID": "",
+        "User": "",
+        "BatchID": "",
+        "Timestamp": 1646462824,
+        "TaskType": "chord",
+        "Signatures": [
+            {
+                "UUID": "task_c69b3a24-415f-409c-b69f-25412bb6ee5a",
+                "Name": "pdf_pages",
+                "RoutingKey": "",
+                "ETA": null,
+                "GroupUUID": "",
+                "GroupTaskCount": 0,
+                "Args": [
+                    {
+                        "Name": "",
+                        "Type": "string",
+                        "Value": "https://www.rfc-editor.org/rfc/pdfrfc/rfc3510.txt.pdf"
+                    },
+                    {
+                        "Name": "",
+                        "Type": "string",
+                        "Value": "\\Users\\Administrator\\print\\file.xlsx"
+                    }
+                ],
+                "Headers": null,
+                "Priority": 0,
+                "Immutable": false,
+                "RetryCount": 0,
+                "RetryTimeout": 0,
+                "OnSuccess": null,
+                "OnError": null,
+                "ChordCallback": null,
+                "BrokerMessageGroupId": "",
+                "SQSReceiptHandle": "",
+                "StopTaskDeletionOnError": false,
+                "IgnoreWhenTaskNotRegistered": false
+            },
+            {
+                "UUID": "task_2a64809f-5f6e-4a86-8ae4-8fa40537475c",
+                "Name": "pdf_pages",
+                "RoutingKey": "",
+                "ETA": null,
+                "GroupUUID": "",
+                "GroupTaskCount": 0,
+                "Args": [
+                    {
+                        "Name": "",
+                        "Type": "string",
+                        "Value": "\\Users\\Administrator\\print\\print_test.pdf"
+                    },
+                    {
+                        "Name": "",
+                        "Type": "string",
+                        "Value": "\\Users\\Administrator\\print\\Description.doc"
+                    }
+                ],
+                "Headers": null,
+                "Priority": 0,
+                "Immutable": false,
+                "RetryCount": 0,
+                "RetryTimeout": 0,
+                "OnSuccess": null,
+                "OnError": null,
+                "ChordCallback": null,
+                "BrokerMessageGroupId": "",
+                "SQSReceiptHandle": "",
+                "StopTaskDeletionOnError": false,
+                "IgnoreWhenTaskNotRegistered": false
+            }
+        ],
+        "TimeoutDuration": 3081,
+        "SleepDuration": 137,
+        "SendConcurrency": 2,
+        "CallBack": {
+            "UUID": "chord_5a403019-c29c-4081-8774-d3185832396d",
+            "Name": "sum_ints",
+            "RoutingKey": "",
+            "ETA": null,
+            "GroupUUID": "",
+            "GroupTaskCount": 0,
+            "Args": null,
+            "Headers": null,
+            "Priority": 0,
+            "Immutable": false,
+            "RetryCount": 0,
+            "RetryTimeout": 0,
+            "OnSuccess": null,
+            "OnError": null,
+            "ChordCallback": null,
+            "BrokerMessageGroupId": "",
+            "SQSReceiptHandle": "",
+            "StopTaskDeletionOnError": false,
+            "IgnoreWhenTaskNotRegistered": false
+        }
+    },
+    "RESPONSE-200": {
+        "UUID": "33a6dad1-5aa1-475d-960f-fb2c99abec5e",
+        "User": "admin",
+        "BatchID": "",
+        "Timestamp": 1646465111,
+        "TaskType": "chord",
+        "TaskResponses": [
+            {
+                "Results": [
+                    21
+                ],
+                "Signatures": [
+                    {
+                        "UUID": "task_c69b3a24-415f-409c-b69f-25412bb6ee5a",
+                        "Name": "pdf_pages",
+                        "RoutingKey": "",
+                        "ETA": null,
+                        "GroupUUID": "",
+                        "GroupTaskCount": 0,
+                        "Args": [
+                            {
+                                "Name": "",
+                                "Type": "string",
+                                "Value": "https://www.rfc-editor.org/rfc/pdfrfc/rfc3510.txt.pdf"
+                            },
+                            {
+                                "Name": "",
+                                "Type": "string",
+                                "Value": "\\Users\\Administrator\\print\\file.xlsx"
+                            }
+                        ],
+                        "Headers": null,
+                        "Priority": 0,
+                        "Immutable": false,
+                        "RetryCount": 0,
+                        "RetryTimeout": 0,
+                        "OnSuccess": null,
+                        "OnError": null,
+                        "ChordCallback": null,
+                        "BrokerMessageGroupId": "",
+                        "SQSReceiptHandle": "",
+                        "StopTaskDeletionOnError": false,
+                        "IgnoreWhenTaskNotRegistered": false
+                    },
+                    {
+                        "UUID": "task_2a64809f-5f6e-4a86-8ae4-8fa40537475c",
+                        "Name": "pdf_pages",
+                        "RoutingKey": "",
+                        "ETA": null,
+                        "GroupUUID": "",
+                        "GroupTaskCount": 0,
+                        "Args": [
+                            {
+                                "Name": "",
+                                "Type": "string",
+                                "Value": "\\Users\\Administrator\\print\\print_test.pdf"
+                            },
+                            {
+                                "Name": "",
+                                "Type": "string",
+                                "Value": "\\Users\\Administrator\\print\\Description.doc"
+                            }
+                        ],
+                        "Headers": null,
+                        "Priority": 0,
+                        "Immutable": false,
+                        "RetryCount": 0,
+                        "RetryTimeout": 0,
+                        "OnSuccess": null,
+                        "OnError": null,
+                        "ChordCallback": null,
+                        "BrokerMessageGroupId": "",
+                        "SQSReceiptHandle": "",
+                        "StopTaskDeletionOnError": false,
+                        "IgnoreWhenTaskNotRegistered": false
+                    }
+                ],
+                "CallBack": {
+                    "UUID": "chord_5a403019-c29c-4081-8774-d3185832396d",
+                    "Name": "sum_ints",
+                    "RoutingKey": "",
+                    "ETA": null,
+                    "GroupUUID": "",
+                    "GroupTaskCount": 0,
+                    "Args": null,
+                    "Headers": null,
                     "Priority": 0,
                     "Immutable": false,
                     "RetryCount": 0,

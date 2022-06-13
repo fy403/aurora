@@ -12,6 +12,7 @@ import (
 	_ "net/http/pprof"
 	"os"
 	"os/signal"
+	"reflect"
 	"strings"
 	"time"
 
@@ -128,6 +129,13 @@ func (this *Center) HTTPTasksTouch(w http.ResponseWriter, r *http.Request) {
 		}
 	case "chord":
 		chordAsyncResult := result.NewChordAsyncResult(requestOBJ.Signatures, requestOBJ.CallBack, this.server.backend)
+		for _, asyncResult := range chordAsyncResult.GetGroupAsyncResults() {
+			_, err := asyncResult.Touch()
+			if err != nil {
+				http.Error(w, fmt.Sprintf("Task has failed with error: %s", err.Error()), http.StatusBadGateway)
+				return
+			}
+		}
 		results, err := chordAsyncResult.GetChordAyncResults().Touch()
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Task has failed with error: %s", err.Error()), http.StatusBadGateway)
@@ -140,11 +148,13 @@ func (this *Center) HTTPTasksTouch(w http.ResponseWriter, r *http.Request) {
 		})
 	case "chain":
 		chainAsyncResult := result.NewChainAsyncResult(requestOBJ.Signatures, this.server.backend)
-		last := len(chainAsyncResult.GetAsyncResults()) - 1
-		results, err := chainAsyncResult.GetAsyncResults()[last].Touch()
-		if err != nil {
-			http.Error(w, fmt.Sprintf("Task has failed with error: %s", err.Error()), http.StatusBadGateway)
-			return
+		var results []reflect.Value
+		for _, asyncResult := range chainAsyncResult.GetAsyncResults() {
+			results, err = asyncResult.Touch()
+			if err != nil {
+				http.Error(w, fmt.Sprintf("Task has failed with error: %s", err.Error()), http.StatusBadGateway)
+				return
+			}
 		}
 		responseOBJ.TaskResponses = append(responseOBJ.TaskResponses, &request.TaskResponse{
 			Results:    tasks.InterfaceReadableResults(results),
