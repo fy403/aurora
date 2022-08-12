@@ -92,6 +92,7 @@ func (worker *Worker) LaunchAsync(errorsChan chan<- error) {
 	// Log some useful information about worker configuration
 	log.Runtime().Infof("Launching a worker with the following settings:")
 	log.Runtime().Infof("- Broker: %s", RedactURL(cnf.Broker))
+	log.Runtime().Infof("- Labels: %s", cnf.Labels)
 	if worker.Queue == "" {
 		log.Runtime().Infof("- DefaultQueue: %s", cnf.DefaultQueue)
 	} else {

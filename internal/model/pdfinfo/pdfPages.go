@@ -2,12 +2,17 @@ package pdfinfo
 
 import (
 	"aurora/internal/log"
+	"aurora/internal/model"
 	"math"
 	"os"
 
 	gtbg "github.com/fy403/gotenberg-client-go"
 	"github.com/google/uuid"
 )
+
+func init() {
+	model.ExtantTaskMap["pdf_pages"] = PdfPages
+}
 
 // pdf-pages
 func PdfPages(args ...string) (int64, error) {

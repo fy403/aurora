@@ -1,6 +1,13 @@
 package example
 
-import "errors"
+import (
+	"aurora/internal/model"
+	"errors"
+)
+
+func init() {
+	model.ExtantTaskMap["panic"] = PanicTask
+}
 
 // PanicTask ...
 func PanicTask() (string, error) {

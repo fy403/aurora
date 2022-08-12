@@ -45,16 +45,16 @@ func NewCenter() *Center {
 	return &Center{}
 }
 
-func (this *Center) HTTPHealth(w http.ResponseWriter, r *http.Request) {
+func (center *Center) HTTPHealth(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("ok"))
 }
 
-func (this *Center) HTTPAuth(w http.ResponseWriter, r *http.Request) {
+func (center *Center) HTTPAuth(w http.ResponseWriter, r *http.Request) {
 	auth.Login(w, r)
 }
 
-func (this *Center) HTTPTasksTouch(w http.ResponseWriter, r *http.Request) {
+func (center *Center) HTTPTasksTouch(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		http.Error(w, "Must use POST", http.StatusBadRequest)
 		return
@@ -102,7 +102,7 @@ func (this *Center) HTTPTasksTouch(w http.ResponseWriter, r *http.Request) {
 	}
 	switch v := requestOBJ.TaskType; v {
 	case "task":
-		asyncResult := result.NewAsyncResult(requestOBJ.Signatures[0], this.server.backend)
+		asyncResult := result.NewAsyncResult(requestOBJ.Signatures[0], center.server.backend)
 		results, err := asyncResult.Touch()
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Task has failed with error: %s", err.Error()), http.StatusBadGateway)
@@ -114,7 +114,7 @@ func (this *Center) HTTPTasksTouch(w http.ResponseWriter, r *http.Request) {
 		})
 	case "group":
 		for _, signature := range requestOBJ.Signatures {
-			asyncResult := result.NewAsyncResult(signature, this.server.backend)
+			asyncResult := result.NewAsyncResult(signature, center.server.backend)
 			results, err := asyncResult.Touch()
 			if err != nil {
 				http.Error(w, fmt.Sprintf("Task has failed with error: %s", err.Error()), http.StatusBadGateway)
@@ -128,7 +128,7 @@ func (this *Center) HTTPTasksTouch(w http.ResponseWriter, r *http.Request) {
 			})
 		}
 	case "chord":
-		chordAsyncResult := result.NewChordAsyncResult(requestOBJ.Signatures, requestOBJ.CallBack, this.server.backend)
+		chordAsyncResult := result.NewChordAsyncResult(requestOBJ.Signatures, requestOBJ.CallBack, center.server.backend)
 		for _, asyncResult := range chordAsyncResult.GetGroupAsyncResults() {
 			_, err := asyncResult.Touch()
 			if err != nil {
@@ -147,7 +147,7 @@ func (this *Center) HTTPTasksTouch(w http.ResponseWriter, r *http.Request) {
 			CallBack:   requestOBJ.CallBack,
 		})
 	case "chain":
-		chainAsyncResult := result.NewChainAsyncResult(requestOBJ.Signatures, this.server.backend)
+		chainAsyncResult := result.NewChainAsyncResult(requestOBJ.Signatures, center.server.backend)
 		var results []reflect.Value
 		for _, asyncResult := range chainAsyncResult.GetAsyncResults() {
 			results, err = asyncResult.Touch()
@@ -175,7 +175,7 @@ func (this *Center) HTTPTasksTouch(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(data))
 }
 
-func (this *Center) HTTPTasksSend(w http.ResponseWriter, r *http.Request) {
+func (center *Center) HTTPTasksSend(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		http.Error(w, "Must use POST", http.StatusBadRequest)
 		return
@@ -210,8 +210,13 @@ func (this *Center) HTTPTasksSend(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if err := center.LabelSelector(requestOBJ); err != nil {
+		http.Error(w, err.Error(), http.StatusBadGateway)
+		return
+	}
+
 	/*
-	 * Lets start a span representing this run of the `send` command and
+	 * Lets start a span representing center run of the `send` command and
 	 * set a batch id as baggage so it can travel all the way into
 	 * the worker functions.
 	 */
@@ -245,7 +250,7 @@ func (this *Center) HTTPTasksSend(w http.ResponseWriter, r *http.Request) {
 
 	switch v := requestOBJ.TaskType; v {
 	case "task":
-		asyncResultPtr, err := this.server.SendTaskWithContext(ctx, requestOBJ.Signatures[0])
+		asyncResultPtr, err := center.server.SendTaskWithContext(ctx, requestOBJ.Signatures[0])
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Could not send task: %s", err.Error()), http.StatusExpectationFailed)
 			return
@@ -271,7 +276,7 @@ func (this *Center) HTTPTasksSend(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		asyncResults, err := this.server.SendGroupWithContext(ctx, group, requestOBJ.SendConcurrency)
+		asyncResults, err := center.server.SendGroupWithContext(ctx, group, requestOBJ.SendConcurrency)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Could not send group: %s", err.Error()), http.StatusBadGateway)
 			return
@@ -305,7 +310,7 @@ func (this *Center) HTTPTasksSend(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		chordAsyncResult, err := this.server.SendChordWithContext(ctx, chord, requestOBJ.SendConcurrency)
+		chordAsyncResult, err := center.server.SendChordWithContext(ctx, chord, requestOBJ.SendConcurrency)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Could not send chord: %s", err.Error()), http.StatusBadGateway)
 			return
@@ -334,7 +339,7 @@ func (this *Center) HTTPTasksSend(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		chainAsyncResult, err := this.server.SendChainWithContext(ctx, chain)
+		chainAsyncResult, err := center.server.SendChainWithContext(ctx, chain)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Could not send chain: %s", err.Error()), http.StatusBadGateway)
 			return
@@ -385,8 +390,8 @@ func (this *Center) HTTPTasksSend(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(data))
 }
 
-func (this *Center) StartHttpServer() (err error) {
-	var port = this.cfg.HTTP.Port
+func (center *Center) StartHttpServer() (err error) {
+	var port = center.cfg.HTTP.Port
 	if port == "" {
 		port = ":4332"
 	}
@@ -395,63 +400,95 @@ func (this *Center) StartHttpServer() (err error) {
 		return err
 	}
 	mux := http.NewServeMux()
-	mux.HandleFunc("/health", this.HTTPHealth)
-	mux.HandleFunc("/auth", this.HTTPAuth)
-	mux.HandleFunc("/tasks/send", this.HTTPTasksSend)
-	mux.HandleFunc("/tasks/touch", this.HTTPTasksTouch)
+	mux.HandleFunc("/health", center.HTTPHealth)
+	mux.HandleFunc("/auth", center.HTTPAuth)
+	mux.HandleFunc("/tasks/send", center.HTTPTasksSend)
+	mux.HandleFunc("/tasks/touch", center.HTTPTasksTouch)
 	// http.Handle("/metrics", promhttp.Handler())
-	this.srv = &http.Server{Handler: mux}
-	go this.srv.Serve(l)
+	center.srv = &http.Server{Handler: mux}
+	go center.srv.Serve(l)
 	log.Runtime().Infof("http started on %s", port)
 	return nil
 }
 
-func (this *Center) InitMetrics() (err error) {
-	// if err = metrics.InitMetrics(global.Region(), config.AppTag, this.cfg.Files.Metrics, ""); err != nil {
+func (center *Center) initMetrics() (err error) {
+	// if err = metrics.InitMetrics(global.Region(), config.AppTag, center.cfg.Files.Metrics, ""); err != nil {
 	// 	return err
 	// }
 	return nil
 }
 
-func (this *Center) InitLogs() (err error) {
-	if err = log.InitLog(this.cfg.Files.Log); err != nil {
+func (center *Center) initLogs() (err error) {
+	if err = log.InitLog(center.cfg.Files.Log); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (this *Center) InitAuth() (err error) {
-	if err = auth.Init(this.cfg.Auth); err != nil {
+func (center *Center) initAuth() (err error) {
+	if err = auth.Init(center.cfg.Auth); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (this *Center) Init() (err error) {
+// Adjust center req selector to every signatures
+func (center *Center) LabelSelector(requestOBJ *request.CenterRequest) (err error) {
+	var found bool
+	results, err := center.server.backend.GetAllWorkersInfo()
+	if err != nil {
+		return err
+	}
+	labelSelecotr := requestOBJ.LabelSelector
+	// first match algorithm
+	for _, result := range results {
+		if isValid := result.IsValid(center.cfg.Center.BrokerApi); !isValid {
+			req := request.WorkerRequest{
+				UUID: result.UUID,
+			}
+			center.server.backend.PurgeWorkerInfo(&req)
+			continue
+		}
+		if ifMatched := result.MatchLabel(labelSelecotr); ifMatched {
+			found = true
+			for _, sig := range requestOBJ.Signatures {
+				sig.RoutingKey = result.SpecQueue
+			}
+			break
+		}
+	}
+	if !found {
+		err = fmt.Errorf("Not found matched label: %s", requestOBJ.LabelSelector)
+		return
+	}
+	return
+}
+
+func (center *Center) Init() (err error) {
 	// load config
 	if err = config.AppInitConfig(); err != nil {
 		log.Runtime().Errorf("config init error: %s", err.Error())
 		return err
 	}
-	this.cfg = config.GetAppConfig()
+	center.cfg = config.GetAppConfig()
 
 	// init logs
-	if err = this.InitLogs(); err != nil {
+	if err = center.initLogs(); err != nil {
 		log.Runtime().Errorf("logs init error: %s", err.Error())
 	}
 
 	// init metrics
-	if err = this.InitMetrics(); err != nil {
+	if err = center.initMetrics(); err != nil {
 		log.Runtime().Errorf("metrics init error: %s", err.Error())
 	}
 
 	// init auth
-	if err = this.InitAuth(); err != nil {
+	if err = center.initAuth(); err != nil {
 		log.Runtime().Errorf("auth init error: %s", err.Error())
 	}
 
 	// Only Load Center Config
-	var cfg = this.cfg.Center
+	var cfg = center.cfg.Center
 	if cfg == nil {
 		log.Runtime().Fatal("cfg.Center must be set")
 		return
@@ -480,16 +517,16 @@ func (this *Center) Init() (err error) {
 	}
 
 	lock := eagerlock.New()
-	this.server = NewServer(cfg, broker, backend, lock)
+	center.server = NewServer(cfg, broker, backend, lock)
 	return
 }
 
-func (this *Center) Run() (err error) {
+func (center *Center) Run() (err error) {
 	// let center run
 	log.Runtime().Infof("Center Has Running")
 
 	// Setup opentracing
-	opentracingCfg := this.cfg.Opentracing
+	opentracingCfg := center.cfg.Opentracing
 	serviceName := "aurora_center"
 	if opentracingCfg.ServiceName != "" {
 		serviceName = opentracingCfg.ServiceName
@@ -501,7 +538,7 @@ func (this *Center) Run() (err error) {
 	defer cleanup()
 
 	// start a http server
-	if err = this.StartHttpServer(); err != nil {
+	if err = center.StartHttpServer(); err != nil {
 		log.Runtime().Errorf("http server start faild: %s", err.Error())
 	}
 
@@ -512,8 +549,8 @@ func (this *Center) Run() (err error) {
 	return
 }
 
-func (this *Center) Stop() (err error) {
+func (center *Center) Stop() (err error) {
 	// close http server
-	err = this.srv.Close()
+	err = center.srv.Close()
 	return
 }

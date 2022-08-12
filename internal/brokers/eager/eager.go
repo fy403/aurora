@@ -70,3 +70,7 @@ func (eagerBroker *Broker) AssignWorker(w iface.TaskProcessor) {
 func (eagerBroker *Broker) TestConnect() error {
 	return nil
 }
+
+func (eagerBroker *Broker) CreateSpecQueue(queueName string, consumerTag string, concurrency int, taskProcessor iface.TaskProcessor) (bool, error) {
+	return false, nil
+}

@@ -15,21 +15,24 @@ import (
 	"aurora/internal/center"
 	"aurora/internal/config"
 	eagerlock "aurora/internal/locks/eager"
-	"aurora/internal/model/example"
-	"aurora/internal/model/pdfinfo"
+	"aurora/internal/model"
 	"aurora/internal/opentracing/tracers"
+	"aurora/internal/request"
+	"aurora/internal/utils"
 
 	"aurora/internal/log"
 	"aurora/internal/tasks"
+
+	"github.com/google/uuid"
 )
 
-func (this *Worker) HTTPHealth(w http.ResponseWriter, r *http.Request) {
+func (worker *Worker) httpHealth(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("ok"))
 }
 
-func (this *Worker) StartHttpServer() (err error) {
-	var port = this.cfg.HTTP.Port
+func (worker *Worker) startHttpServer() (err error) {
+	var port = worker.cfg.HTTP.Port
 	if port == "" {
 		port = ":8080"
 	}
@@ -38,7 +41,7 @@ func (this *Worker) StartHttpServer() (err error) {
 		return err
 	}
 
-	http.HandleFunc("/health", this.HTTPHealth)
+	http.HandleFunc("/health", worker.httpHealth)
 	// http.Handle("/metrics", promhttp.Handler())
 
 	go http.Serve(l, nil)
@@ -46,40 +49,73 @@ func (this *Worker) StartHttpServer() (err error) {
 	return nil
 }
 
-func (this *Worker) InitMetrics() (err error) {
-	// if err = metrics.InitMetrics(global.Region(), config.AppTag, this.cfg.Files.Metrics, ""); err != nil {
+// Set Worker info to backend
+func (worker *Worker) register() (err error) {
+	labels := worker.cfg.Worker.Labels
+	if len(labels) == 0 {
+		return nil
+	}
+	queueName := fmt.Sprintf("spec_queue:%d", utils.Hash32WithMap(labels))
+	go func() {
+		for {
+			retry, err := worker.server.GetBroker().CreateSpecQueue(queueName, worker.ConsumerTag, worker.Concurrency, worker)
+			if retry {
+				if worker.errorHandler != nil {
+					worker.errorHandler(err)
+				} else {
+					log.Runtime().Warnf("Broker failed with error: %s", err)
+				}
+			} else {
+				log.Runtime().Fatal("register daemon has dead with too many retry")
+				return
+			}
+		}
+	}()
+	req := request.WorkerRequest{
+		UUID:      uuid.New().String(),
+		SpecQueue: queueName,
+		Metrics:   nil,
+		Labels:    worker.cfg.Worker.Labels,
+		Timestamp: time.Now().Unix(),
+	}
+	err = worker.server.GetBackend().SetWorkerInfo(&req)
+	return
+}
+
+func (worker *Worker) initMetrics() (err error) {
+	// if err = metrics.InitMetrics(global.Region(), config.AppTag, worker.cfg.Files.Metrics, ""); err != nil {
 	// 	return err
 	// }
 	return nil
 }
 
-func (this *Worker) InitLogs() (err error) {
-	if err = log.InitLog(this.cfg.Files.Log); err != nil {
+func (worker *Worker) initLogs() (err error) {
+	if err = log.InitLog(worker.cfg.Files.Log); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (this *Worker) Init() (err error) {
+func (worker *Worker) Init() (err error) {
 	// load config
 	if err = config.AppInitConfig(); err != nil {
 		log.Runtime().Fatalf("config init error: %s", err.Error())
 		return err
 	}
-	this.cfg = config.GetAppConfig()
+	worker.cfg = config.GetAppConfig()
 
 	// init logs
-	if err = this.InitLogs(); err != nil {
+	if err = worker.initLogs(); err != nil {
 		log.Runtime().Errorf("logs init error: %s", err.Error())
 	}
 
 	// init metrics
-	if err = this.InitMetrics(); err != nil {
+	if err = worker.initMetrics(); err != nil {
 		log.Runtime().Errorf("metrics init error: %s", err.Error())
 	}
 
 	// Only Load worker config
-	var cfg = this.cfg.Worker
+	var cfg = worker.cfg.Worker
 	if cfg == nil {
 		log.Runtime().Fatal("cfg.Worker must be set")
 		return
@@ -110,20 +146,10 @@ func (this *Worker) Init() (err error) {
 
 	// Create server instance
 	lock := eagerlock.New()
-	this.server = center.NewServer(cfg, broker, backend, lock, true)
+	worker.server = center.NewServer(cfg, broker, backend, lock, true)
+
 	// Register example tasks
-	tasksMap := map[string]interface{}{
-		"add":               example.Add,
-		"multiply":          example.Multiply,
-		"sum_ints":          example.SumInts,
-		"sum_floats":        example.SumFloats,
-		"concat":            example.Concat,
-		"split":             example.Split,
-		"panic_task":        example.PanicTask,
-		"long_running_task": example.LongRunningTask,
-		"pdf_pages":         pdfinfo.PdfPages,
-	}
-	err = this.server.RegisterTasks(tasksMap)
+	err = worker.server.RegisterTasks(model.ExtantTaskMap)
 	if err != nil {
 		log.Runtime().Fatalf("RegisterTasks process error:", err)
 		return
@@ -132,13 +158,13 @@ func (this *Worker) Init() (err error) {
 	// Set worker subscribe configure
 	hostname, err := os.Hostname()
 	if err != nil {
-		this.ConsumerTag = fmt.Sprintf("aurora_worker_id_%d", time.Now().Unix())
+		worker.ConsumerTag = fmt.Sprintf("aurora_worker_id_%d", time.Now().Unix())
 	} else {
-		this.ConsumerTag = hostname
+		worker.ConsumerTag = hostname
 	}
-	this.Concurrency = cfg.Concurrency
+	worker.Concurrency = cfg.Concurrency
 	// Required, setting worker subscribe queue
-	this.Queue = cfg.Queue
+	worker.Queue = cfg.Queue
 
 	// Set task state transition handler
 	errorHandler := func(err error) {
@@ -151,18 +177,24 @@ func (this *Worker) Init() (err error) {
 		log.Runtime().Infof("I am an end of task handler for:", signature.Name)
 	}
 
-	this.SetPostTaskHandler(postTaskHandler)
-	this.SetErrorHandler(errorHandler)
-	this.SetPreTaskHandler(preTaskHandler)
+	worker.SetPostTaskHandler(postTaskHandler)
+	worker.SetErrorHandler(errorHandler)
+	worker.SetPreTaskHandler(preTaskHandler)
+
+	// TODO:Register the queue of the current instance with the center and subscribe
+	if err = worker.register(); err != nil {
+		log.Runtime().Fatalf("Can`t register instance queue to center: %v", err)
+		return
+	}
 	return
 }
 
-func (this *Worker) Run() (err error) {
+func (worker *Worker) Run() (err error) {
 	// let worker run
 	log.Runtime().Infof("Worker Has Running")
 
 	// Setup opentracing
-	opentracingCfg := this.cfg.Opentracing
+	opentracingCfg := worker.cfg.Opentracing
 	serviceName := "aurora_worker"
 	if opentracingCfg.ServiceName != "" {
 		serviceName = opentracingCfg.ServiceName
@@ -174,14 +206,14 @@ func (this *Worker) Run() (err error) {
 	defer cleanup()
 
 	// start a http server
-	if err = this.StartHttpServer(); err != nil {
+	if err = worker.startHttpServer(); err != nil {
 		log.Runtime().Errorf("http server start faild: %s", err.Error())
 	}
 	// Continuous operation until a CTRL+C
-	return this.Launch()
+	return worker.Launch()
 }
 
-func (this *Worker) Stop() (err error) {
-	this.Quit()
+func (worker *Worker) Stop() (err error) {
+	worker.Quit()
 	return
 }

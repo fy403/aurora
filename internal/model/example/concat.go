@@ -1,5 +1,11 @@
 package example
 
+import "aurora/internal/model"
+
+func init() {
+	model.ExtantTaskMap["concat"] = Concat
+}
+
 // Concat ...
 func Concat(strs []string) (string, error) {
 	var res string

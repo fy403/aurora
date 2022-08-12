@@ -1,12 +1,7 @@
 package request
 
 import (
-	"aurora/internal/auth"
 	"aurora/internal/tasks"
-	"errors"
-	"net/http"
-
-	validator "github.com/go-playground/validator/v10"
 )
 
 type CenterRequest struct {
@@ -15,6 +10,7 @@ type CenterRequest struct {
 	BatchID         string             `json:"BatchID" validate:"max=50"` // unique id for request
 	Timestamp       int64              `json:"Timestamp" validate:"required"`
 	TaskType        string             `json:"TaskType" validate:"required,oneof='task' 'group' 'chord' 'chain'"`
+	LabelSelector   map[string]string  `json:"LabelSelector" validate:"max=128"`
 	Signatures      []*tasks.Signature `json:"Signatures" validate:"required,gt=0"`
 	TimeoutDuration int                `json:"TimeoutDuration" validate:"required,min=100,max=5000"`
 	SleepDuration   int                `json:"SleepDuration" validate:"required,min=50,max=500"`
@@ -37,33 +33,23 @@ type TaskResponse struct {
 	CallBack   *tasks.Signature   `json:"CallBack"`
 }
 
-// use a single instance of Validate, it caches struct info
-var validate *validator.Validate
-
-func init() {
-	validate = validator.New()
+type WorkerRequest struct {
+	UUID      string            `json:"UUID"`
+	SpecQueue string            `json:"SpecQueue"`
+	Metrics   map[string]string `json:"Metrics"`
+	Labels    map[string]string `json:"Labels"`
+	Timestamp int64             `json:"Timestamp"`
 }
 
-// Verification parameters
-func (f *CenterRequest) Validate() (err error) {
-	if err = validate.Struct(f); err != nil {
-		return err
-	}
-	return nil
+type WorkerResponse struct {
+	UUID      string            `json:"UUID"`
+	SpecQueue string            `json:"SpecQueue"`
+	Metrics   map[string]string `json:"Metrics"`
+	Labels    map[string]string `json:"Labels"`
+	Timestamp int64             `json:"Timestamp"`
 }
 
-// Inject will add some session attribute in f
-func (f *CenterRequest) Inject(r *http.Request) (err error) {
-	// Inject session`s attribute in f
-	store := auth.DefaultStore()
-	if store == nil {
-		return errors.New("Server Session Store not Init")
-	}
-	session, err := store.Get(r, "aurora_session")
-	if session.IsNew {
-		return errors.New("Read session from request exceptly")
-	}
-	f.User = session.Values["User"].(string)
-	f.UUID = session.Values["UUID"].(string)
-	return nil
+type RabbitMQApi struct {
+	Consumers int    `json:"consumers"`
+	State     string `json:"state"`
 }

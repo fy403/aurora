@@ -46,7 +46,7 @@ func TestConsume(t *testing.T) {
 		}()
 
 		go func() {
-			err := broker.consume(deliveries, 2, processor, closeChan)
+			err := broker.Consume(deliveries, 2, processor, closeChan)
 			if err != nil {
 				errChan <- err
 			}

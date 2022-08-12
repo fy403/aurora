@@ -25,6 +25,7 @@ type Backend struct {
 	common.Backend
 	client *mongo.Client
 	tc     *mongo.Collection
+	wc     *mongo.Collection
 	gmc    *mongo.Collection
 	once   sync.Once
 }
@@ -279,6 +280,13 @@ func (b *Backend) groupMetasCollection() *mongo.Collection {
 	return b.gmc
 }
 
+func (b *Backend) workersCollection() *mongo.Collection {
+	b.once.Do(func() {
+		b.connect()
+	})
+	return b.wc
+}
+
 // connect creates the underlying mgo connection if it doesn't exist
 // creates required indexes for our collections
 func (b *Backend) connect() error {
@@ -296,6 +304,7 @@ func (b *Backend) connect() error {
 
 	b.tc = b.client.Database(database).Collection("tasks")
 	b.gmc = b.client.Database(database).Collection("group_metas")
+	b.wc = b.client.Database(database).Collection("workers")
 
 	err = b.createMongoIndexes(database)
 	if err != nil {

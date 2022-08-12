@@ -5,6 +5,7 @@ import (
 	"aurora/internal/tasks"
 	"bytes"
 	"encoding/json"
+	"os"
 	"testing"
 	"time"
 
@@ -66,4 +67,15 @@ func TestDecoder(t *testing.T) {
 	// So there will be some inconsistencies here
 	// But not influent result! For more information, please see: aurora/internal/tasks/reflect.go
 	assert.Equal(t, &obj, &requestOBJ)
+}
+
+func TestIsValid(t *testing.T) {
+	if os.Getenv("BROKER_API") == "" {
+		t.Skip("BROKER_API is not defined")
+	}
+	resp := &request.WorkerResponse{
+		UUID: "spec_queue:4211021996",
+	}
+	isValid := resp.IsValid(os.Getenv("BROKER_API"))
+	assert.True(t, isValid)
 }

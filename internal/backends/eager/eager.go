@@ -9,6 +9,7 @@ import (
 	"aurora/internal/backends/iface"
 	"aurora/internal/common"
 	"aurora/internal/config"
+	"aurora/internal/request"
 	"aurora/internal/tasks"
 )
 
@@ -204,6 +205,19 @@ func (b *Backend) updateState(s *tasks.TaskState) error {
 	}
 
 	b.tasks[s.TaskUUID] = msg
+	return nil
+}
+
+func (b *Backend) SetWorkerInfo(req *request.WorkerRequest) error {
+	return nil
+}
+func (b *Backend) GetAllWorkersInfo() ([]*request.WorkerResponse, error) {
+	return nil, nil
+}
+func (b *Backend) UpdateWorkerInfo(req *request.WorkerRequest) error {
+	return nil
+}
+func (b *Backend) PurgeWorkerInfo(req *request.WorkerRequest) error {
 	return nil
 }
 

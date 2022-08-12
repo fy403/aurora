@@ -19,6 +19,7 @@ type Broker interface {
 	GetDelayedTasks() ([]*tasks.Signature, error)
 	AdjustRoutingKey(s *tasks.Signature)
 	TestConnect() error
+	CreateSpecQueue(queueName string, consumerTag string, concurrency int, taskProcessor TaskProcessor) (bool, error)
 }
 
 // TaskProcessor - can process a delivered task

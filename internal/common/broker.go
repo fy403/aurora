@@ -9,6 +9,8 @@ import (
 	"aurora/internal/log"
 	"aurora/internal/retry"
 	"aurora/internal/tasks"
+
+	"github.com/streadway/amqp"
 )
 
 type registeredTaskNames struct {
@@ -101,6 +103,10 @@ func (b *Broker) StartConsuming(consumerTag string, concurrency int, taskProcess
 		b.retryFunc = retry.Closure()
 	}
 
+}
+
+func (b *Broker) Consume(deliveries <-chan amqp.Delivery, concurrency int, taskProcessor iface.TaskProcessor, amqpCloseChan <-chan *amqp.Error) error {
+	return nil
 }
 
 // StopConsuming is a common part of StopConsuming

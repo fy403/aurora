@@ -2,8 +2,13 @@ package example
 
 import (
 	"aurora/internal/log"
+	"aurora/internal/model"
 	"time"
 )
+
+func init() {
+	model.ExtantTaskMap["long_running_task"] = LongRunningTask
+}
 
 // LongRunningTask ...
 func LongRunningTask() error {

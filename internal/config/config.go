@@ -54,6 +54,7 @@ var (
 // Config holds all configuration for our program
 type Config struct {
 	Broker                  string `yaml:"broker" envconfig:"BROKER"`
+	BrokerApi               string `yaml:"broker_api" envconfig:"BROKER_API"`
 	Lock                    string `yaml:"lock" envconfig:"LOCK"`
 	MultipleBrokerSeparator string `yaml:"multiple_broker_separator" envconfig:"MULTIPLE_BROKEN_SEPARATOR"`
 	DefaultQueue            string `yaml:"default_queue" envconfig:"DEFAULT_QUEUE"`
@@ -63,6 +64,7 @@ type Config struct {
 	ConsumerTag string
 	Concurrency int
 	Queue       string
+	Labels      map[string]string
 	// Worker--END
 	AMQP      *AMQPConfig      `yaml:"amqp"`
 	SQS       *SQSConfig       `yaml:"sqs"`
