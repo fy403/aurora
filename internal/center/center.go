@@ -452,7 +452,9 @@ func (center *Center) LabelSelector(requestOBJ *request.CenterRequest) (err erro
 		if ifMatched := result.MatchLabel(labelSelecotr); ifMatched {
 			found = true
 			for _, sig := range requestOBJ.Signatures {
-				sig.RoutingKey = result.SpecQueue
+				if sig.RoutingKey == "" {
+					sig.RoutingKey = result.SpecQueue
+				}
 			}
 			break
 		}
