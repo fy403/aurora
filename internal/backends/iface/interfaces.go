@@ -13,6 +13,12 @@ type Backend interface {
 	GroupTaskStates(groupUUID string, groupTaskCount int) ([]*tasks.TaskState, error)
 	TriggerChord(groupUUID string) (bool, error)
 
+	// Graph related functions
+	InitGraph(graph *tasks.Graph) error
+	GraphCompleted(graphUUID string, graphVertexesCount int) (bool, error)
+	GraphStates(graphUUID string) (*tasks.Graph, error)
+	UpdateGraphStates(graph *tasks.Graph) error
+
 	// Setting / getting task state
 	SetStatePending(signature *tasks.Signature) error
 	SetStateReceived(signature *tasks.Signature) error

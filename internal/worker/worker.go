@@ -11,6 +11,7 @@ import (
 	"aurora/internal/opentracing/tracing"
 	"aurora/internal/retry"
 	"aurora/internal/tasks"
+	"context"
 	"errors"
 	"fmt"
 	"net/url"
@@ -233,7 +234,7 @@ func (worker *Worker) Process(signature *tasks.Signature) error {
 		return worker.taskFailed(signature, err)
 	}
 
-	return worker.taskSucceeded(signature, results)
+	return worker.taskSucceeded(signature, results, task.Context)
 }
 
 // retryTask decrements RetryCount counter and republishes the task to the queue
@@ -280,7 +281,7 @@ func (worker *Worker) retryTaskIn(signature *tasks.Signature, retryIn time.Durat
 
 // taskSucceeded updates the task state and triggers success callbacks or a
 // chord callback if this was the last task of a group with a chord callback
-func (worker *Worker) taskSucceeded(signature *tasks.Signature, taskResults []*tasks.TaskResult) error {
+func (worker *Worker) taskSucceeded(signature *tasks.Signature, taskResults []*tasks.TaskResult, ctx context.Context) error {
 	// Update task state to SUCCESS
 	if err := worker.server.GetBackend().SetStateSuccess(signature, taskResults); err != nil {
 		return fmt.Errorf("Set state to 'success' for task %s returned error: %s", signature.UUID, err)
@@ -297,7 +298,6 @@ func (worker *Worker) taskSucceeded(signature *tasks.Signature, taskResults []*t
 	log.Runtime().Debugf("Processed task %s. Results = %s", signature.UUID, debugResults)
 
 	// Trigger success callbacks
-
 	for _, successTask := range signature.OnSuccess {
 		if signature.Immutable == false {
 			// Pass results of the task to success callbacks
@@ -309,7 +309,56 @@ func (worker *Worker) taskSucceeded(signature *tasks.Signature, taskResults []*t
 			}
 		}
 
-		worker.server.SendChainTask(successTask)
+		worker.server.SendChainTaskWithContext(ctx, successTask)
+	}
+
+	// Trigger graph next sequences
+	if signature.GraphUUID != "" {
+		isFinished, err := worker.server.GetBackend().GraphCompleted(signature.GraphUUID, signature.GraphTaskCount)
+		if err != nil {
+			return fmt.Errorf("Get complemented state for graph %s returned error: %s", signature.GraphUUID, err)
+		}
+		if isFinished {
+			return nil
+		}
+		graph, err := worker.server.GetBackend().GraphStates(signature.GraphUUID)
+		if err != nil {
+			return fmt.Errorf("Get state for graph %s returned error: %s", signature.GraphUUID, err)
+		}
+		inDegrees := make([]int, graph.VexNum)
+		for i := 0; i < graph.VexNum; i++ {
+			for j := 0; j < graph.VexNum; j++ {
+				if graph.Edge[i][j] == 1 {
+					inDegrees[j]++
+				}
+			}
+		}
+		index := -1
+		for idx, vertex := range graph.Vertexes {
+			if vertex.UUID == signature.UUID {
+				index = idx
+			}
+		}
+		if index == -1 {
+			return fmt.Errorf("graph %s not contain %s", signature.GraphUUID, signature.UUID)
+		}
+		for i := 0; i < graph.VexNum; i++ {
+			if graph.Edge[index][i] == 1 {
+				inDegrees[i]--
+				graph.Edge[index][i] = 0
+				if inDegrees[i] == 0 {
+					// Send the next graph task
+					_, err = worker.server.SendTaskWithContext(ctx, graph.Vertexes[i])
+					if err != nil {
+						return err
+					}
+				}
+			}
+		}
+		if err = worker.server.GetBackend().UpdateGraphStates(graph); err != nil {
+			return err
+		}
+		return nil
 	}
 
 	// If the task was not part of a group, just return
@@ -385,7 +434,7 @@ func (worker *Worker) taskSucceeded(signature *tasks.Signature, taskResults []*t
 	}
 
 	// Send the chord task
-	_, err = worker.server.SendChordCallback(signature.ChordCallback)
+	_, err = worker.server.SendChordCallbackWithContext(ctx, signature.ChordCallback)
 	if err != nil {
 		return err
 	}

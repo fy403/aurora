@@ -62,8 +62,9 @@ func initConfig() {
 		viper.SetConfigFile(cfgFile)
 	} else {
 		// Find home directory.
-		home, err := os.UserHomeDir()
-		cobra.CheckErr(err)
+		// home, err := os.UserHomeDir()
+		// cobra.CheckErr(err)
+		home := "./config"
 
 		// Search config in home directory with name "config" (without extension).
 		viper.AddConfigPath(home)

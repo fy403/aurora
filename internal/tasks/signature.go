@@ -47,9 +47,12 @@ type Signature struct {
 	UUID           string
 	Name           string
 	RoutingKey     string
+	LabelSelector  map[string]string
 	ETA            *time.Time
 	GroupUUID      string
 	GroupTaskCount int
+	GraphUUID      string
+	GraphTaskCount int
 	Args           []Arg
 	Headers        Headers
 	Priority       uint8

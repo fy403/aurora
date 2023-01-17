@@ -78,11 +78,10 @@ func (this *App) Init() (err error) {
 		return
 	}
 
-	// TODO: link config
-
 	// create instance
 	_, cancel := context.WithCancel(context.Background())
-	// TODO: load app config
+
+	// load app config
 	this.cancel = cancel
 	return
 }
@@ -92,7 +91,7 @@ func (this *App) Run() (err error) {
 	if err = this.StartHttpServer(); err != nil {
 		return
 	}
-	// TODO: let app run
+	// let app run
 	time.Local, _ = time.LoadLocation("Asia/Beijing")
 	log.Runtime().Infof("center has running")
 	return

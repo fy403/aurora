@@ -24,10 +24,28 @@ type Chord struct {
 	Callback *Signature
 }
 
+type Graph struct {
+	GraphUUID string
+	VexNum    int
+	ArcNum    int
+	Vertexes  []*Signature
+	Edge      [][]int
+	EdgeCopy  [][]int
+}
+
 // GetUUIDs returns slice of task UUIDS
 func (group *Group) GetUUIDs() []string {
 	taskUUIDs := make([]string, len(group.Tasks))
 	for i, signature := range group.Tasks {
+		taskUUIDs[i] = signature.UUID
+	}
+	return taskUUIDs
+}
+
+// GetUUIDs returns slice of task UUIDS
+func (graph *Graph) GetUUIDs() []string {
+	taskUUIDs := make([]string, len(graph.Vertexes))
+	for i, signature := range graph.Vertexes {
 		taskUUIDs[i] = signature.UUID
 	}
 	return taskUUIDs
@@ -92,4 +110,47 @@ func NewChord(group *Group, callback *Signature) (*Chord, error) {
 	}
 
 	return &Chord{Group: group, Callback: callback}, nil
+}
+
+// NewGraph creates a new graph of tasks to be processed in sequential
+func NewGraph(relations []map[int]int, signatures ...*Signature) (*Graph, error) {
+	vexNum := len(signatures)
+	arcNum := 0
+
+	edge := make([][]int, vexNum)
+	edgeCopy := make([][]int, vexNum)
+	for idx := range edge {
+		edge[idx] = make([]int, vexNum)
+		edgeCopy[idx] = make([]int, vexNum)
+	}
+
+	graphUUID := uuid.New().String()
+	graphID := fmt.Sprintf("graph_%v", graphUUID)
+
+	for _, signature := range signatures {
+		if signature.UUID == "" {
+			signatureID := uuid.New().String()
+			signature.UUID = fmt.Sprintf("task_%v", signatureID)
+		}
+		signature.GraphUUID = graphID
+		signature.GraphTaskCount = len(signatures)
+	}
+
+	for _, relation := range relations {
+		for src, dst := range relation {
+			edge[src][dst] = 1
+			arcNum++
+		}
+	}
+
+	copy(edgeCopy, edge)
+
+	return &Graph{
+		GraphUUID: graphID,
+		VexNum:    vexNum,
+		ArcNum:    arcNum,
+		Vertexes:  signatures,
+		Edge:      edge,
+		EdgeCopy:  edgeCopy,
+	}, nil
 }

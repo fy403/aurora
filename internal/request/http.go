@@ -5,16 +5,17 @@ import (
 )
 
 type CenterRequest struct {
-	UUID            string             `json:"UUID" validate:"max=50"`    // user id
-	User            string             `json:"User" validate:"max=15"`    // user name
-	BatchID         string             `json:"BatchID" validate:"max=50"` // unique id for request
+	UUID            string             `json:"UUID"`    // user id
+	User            string             `json:"User"`    // user name
+	BatchID         string             `json:"BatchID"` // unique id for request
 	Timestamp       int64              `json:"Timestamp" validate:"required"`
-	TaskType        string             `json:"TaskType" validate:"required,oneof='task' 'group' 'chord' 'chain'"`
-	LabelSelector   map[string]string  `json:"LabelSelector" validate:"max=128"`
+	TaskType        string             `json:"TaskType" validate:"required,oneof='task' 'group' 'chord' 'chain' 'graph'"`
+	LabelSelector   map[string]string  `json:"LabelSelector"`
+	Relations       []map[int]int      `json:"Relations"`
 	Signatures      []*tasks.Signature `json:"Signatures" validate:"required,gt=0"`
-	TimeoutDuration int                `json:"TimeoutDuration" validate:"required,min=100,max=5000"`
-	SleepDuration   int                `json:"SleepDuration" validate:"required,min=50,max=500"`
-	SendConcurrency int                `json:"SendConcurrency" validate:"min=0,max=10"`
+	TimeoutDuration int                `json:"TimeoutDuration" validate:"min=0`
+	SleepDuration   int                `json:"SleepDuration" validate:"min=0"`
+	SendConcurrency int                `json:"SendConcurrency" validate:"min=0"`
 	CallBack        *tasks.Signature   `json:"CallBack" validate:"required_if=TaskType chord"`
 }
 

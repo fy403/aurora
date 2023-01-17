@@ -40,6 +40,18 @@ type GroupMeta struct {
 	TTL            int64     `bson:"ttl,omitempty"`
 }
 
+type GraphMeta struct {
+	GraphUUID string       `bson:"_id"`
+	VexNum    int          `bson:"vex_num"`
+	ArcNum    int          `bson:"arc_num"`
+	Vertexes  []*Signature `bson:"vertexes"`
+	Edge      [][]int      `bson:"edge"`
+	EdgeCopy  [][]int      `bson:"edge_copy"`
+	Lock      bool         `bson:"lock"`
+	CreatedAt time.Time    `bson:"created_at"`
+	TTL       int64        `bson:"ttl,omitempty"`
+}
+
 // NewPendingTaskState ...
 func NewPendingTaskState(signature *Signature) *TaskState {
 	return &TaskState{

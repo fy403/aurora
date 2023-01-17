@@ -8,6 +8,9 @@ import (
 )
 
 func (wr *WorkerResponse) MatchLabel(labelSelecotr map[string]string) bool {
+	if len(labelSelecotr) == 0 {
+		return false
+	}
 	for k, v := range labelSelecotr {
 		if vv, ok := wr.Labels[k]; !ok || vv != v {
 			return false

@@ -50,7 +50,7 @@ func (b *Broker) CreateSpecQueue(queueName string, consumerTag string, concurren
 		return b.GetRetry(), fmt.Errorf("Queue consume error: %s", err)
 	}
 
-	log.Runtime().Info("[*] Waiting for messages. To exit press CTRL+C")
+	log.Runtime().Infof("[spec queue: %s] Waiting for messages. To exit press CTRL+C", queue.Name)
 
 	if err := b.consume(deliveries, concurrency, taskProcessor, amqpCloseChan); err != nil {
 		return b.GetRetry(), err

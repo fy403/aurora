@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 
 	"aurora/internal/tasks"
+	"aurora/internal/utils/algorithm"
 
 	opentracing "github.com/opentracing/opentracing-go"
 	opentracing_ext "github.com/opentracing/opentracing-go/ext"
@@ -31,7 +32,7 @@ func StartSpanFromHeaders(headers tasks.Headers, operationName string) opentraci
 		ConsumerOption(spanContext),
 		AuroraTag,
 	)
-
+	// span := opentracing.StartSpan(operationName, opentracing.ChildOf(spanContext))
 	// Log any error but don't fail
 	if err != nil {
 		span.LogFields(opentracing_log.Error(err))
@@ -124,6 +125,26 @@ func AnnotateSpanWithGroupInfo(span opentracing.Span, group *tasks.Group, sendCo
 
 	// inject the tracing span into the tasks signature headers
 	for _, signature := range group.Tasks {
+		signature.Headers = HeadersWithSpan(signature.Headers, span)
+	}
+}
+
+// AnnotateSpanWithGraphInfo ...
+func AnnotateSpanWithGraphInfo(span opentracing.Span, graph *tasks.Graph) {
+	// tag the span with some info about the group
+	span.SetTag("graph.uuid", graph.GraphUUID)
+	span.SetTag("graph.vertexes.length", len(graph.Vertexes))
+
+	// encode the task uuids to json, if that fails just dump it in
+	if taskUUIDs, err := json.Marshal(graph.GetUUIDs()); err == nil {
+		span.SetTag("graph.vertexes", string(taskUUIDs))
+	} else {
+		span.SetTag("graph.vertexes", graph.GetUUIDs())
+	}
+
+	// inject the tracing span into the tasks signature headers
+	initialTasks, _ := algorithm.TopologySort(graph)
+	for _, signature := range initialTasks {
 		signature.Headers = HeadersWithSpan(signature.Headers, span)
 	}
 }

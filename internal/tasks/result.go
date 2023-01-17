@@ -40,6 +40,9 @@ func HumanReadableResults(results []reflect.Value) string {
 }
 
 func InterfaceReadableResults(results []reflect.Value) []interface{} {
+	if results == nil {
+		return nil
+	}
 	readableResults := make([]interface{}, len(results))
 	for i := 0; i < len(results); i++ {
 		readableResults[i] = results[i].Interface()

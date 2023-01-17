@@ -1,9 +1,7 @@
-package example
-
-import "aurora/internal/model"
+package model
 
 func init() {
-	model.ExtantTaskMap["add"] = Add
+	ExtantTaskMap["add"] = Add
 }
 
 // SumInts ...

@@ -94,7 +94,7 @@ func (b *Broker) StartConsuming(consumerTag string, concurrency int, taskProcess
 		return b.GetRetry(), fmt.Errorf("Queue consume error: %s", err)
 	}
 
-	log.Runtime().Info("[*] Waiting for messages. To exit press CTRL+C")
+	log.Runtime().Infof("[common queue: %s] Waiting for messages. To exit press CTRL+C", queue.Name)
 
 	if err := b.consume(deliveries, concurrency, taskProcessor, amqpCloseChan); err != nil {
 		return b.GetRetry(), err
@@ -319,12 +319,11 @@ func (b *Broker) consumeOne(delivery amqp.Delivery, taskProcessor iface.TaskProc
 		return errs.NewErrCouldNotUnmarshalTaskSignature(delivery.Body, err)
 	}
 
-	// If the task is not registered, we nack it and requeue,
+	// If the task is not registered, we nack it and drop it,
 	// there might be different workers for processing specific tasks
 	if !b.IsTaskRegistered(signature.Name) {
-		requeue = true
-		log.Runtime().Infof("Task not registered with this worker. Requeing message: %s", delivery.Body)
-
+		requeue = false
+		log.Runtime().Infof("Task not registered with this worker. Requeuing message: %s", delivery.Body)
 		if !signature.IgnoreWhenTaskNotRegistered {
 			delivery.Nack(multiple, requeue)
 		}

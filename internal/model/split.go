@@ -1,12 +1,11 @@
-package example
+package model
 
 import (
-	"aurora/internal/model"
 	"strings"
 )
 
 func init() {
-	model.ExtantTaskMap["split"] = Split
+	ExtantTaskMap["split"] = Split
 }
 
 // Split ...

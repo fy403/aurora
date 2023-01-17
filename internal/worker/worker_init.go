@@ -58,6 +58,7 @@ func (worker *Worker) register() (err error) {
 	queueName := fmt.Sprintf("spec_queue:%d", utils.Hash32WithMap(labels))
 	go func() {
 		for {
+			// CreateSpecQueue and Continuous consumption
 			retry, err := worker.server.GetBroker().CreateSpecQueue(queueName, worker.ConsumerTag, worker.Concurrency, worker)
 			if retry {
 				if worker.errorHandler != nil {
@@ -71,8 +72,9 @@ func (worker *Worker) register() (err error) {
 			}
 		}
 	}()
+	_id := "worker_" + uuid.New().String()
 	req := request.WorkerRequest{
-		UUID:      uuid.New().String(),
+		UUID:      _id,
 		SpecQueue: queueName,
 		Metrics:   nil,
 		Labels:    worker.cfg.Worker.Labels,
@@ -155,6 +157,8 @@ func (worker *Worker) Init() (err error) {
 		return
 	}
 
+	log.Runtime().Infof("RegisterTasks are %v", worker.server.GetRegisteredTaskNames())
+
 	// Set worker subscribe configure
 	hostname, err := os.Hostname()
 	if err != nil {
@@ -181,7 +185,7 @@ func (worker *Worker) Init() (err error) {
 	worker.SetErrorHandler(errorHandler)
 	worker.SetPreTaskHandler(preTaskHandler)
 
-	// TODO:Register the queue of the current instance with the center and subscribe
+	// Register the queue of the current instance with the center and subscribe
 	if err = worker.register(); err != nil {
 		log.Runtime().Fatalf("Can`t register instance queue to center: %v", err)
 		return

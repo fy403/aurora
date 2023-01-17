@@ -27,6 +27,7 @@ type Backend struct {
 	tc     *mongo.Collection
 	wc     *mongo.Collection
 	gmc    *mongo.Collection
+	gc     *mongo.Collection
 	once   sync.Once
 }
 
@@ -268,7 +269,6 @@ func (b *Backend) tasksCollection() *mongo.Collection {
 	b.once.Do(func() {
 		b.connect()
 	})
-
 	return b.tc
 }
 
@@ -276,7 +276,6 @@ func (b *Backend) groupMetasCollection() *mongo.Collection {
 	b.once.Do(func() {
 		b.connect()
 	})
-
 	return b.gmc
 }
 
@@ -285,6 +284,13 @@ func (b *Backend) workersCollection() *mongo.Collection {
 		b.connect()
 	})
 	return b.wc
+}
+
+func (b *Backend) graphCollection() *mongo.Collection {
+	b.once.Do(func() {
+		b.connect()
+	})
+	return b.gc
 }
 
 // connect creates the underlying mgo connection if it doesn't exist
@@ -305,6 +311,7 @@ func (b *Backend) connect() error {
 	b.tc = b.client.Database(database).Collection("tasks")
 	b.gmc = b.client.Database(database).Collection("group_metas")
 	b.wc = b.client.Database(database).Collection("workers")
+	b.gc = b.client.Database(database).Collection("graphs")
 
 	err = b.createMongoIndexes(database)
 	if err != nil {
@@ -363,6 +370,111 @@ func (b *Backend) createMongoIndexes(database string) error {
 		return err
 	}
 
+	return err
+}
+
+func (b *Backend) InitGraph(graph *tasks.Graph) error {
+	graphMetas := &tasks.GraphMeta{
+		GraphUUID: graph.GraphUUID,
+		VexNum:    graph.VexNum,
+		ArcNum:    graph.ArcNum,
+		Vertexes:  graph.Vertexes,
+		Edge:      graph.Edge,
+		EdgeCopy:  graph.EdgeCopy,
+		CreatedAt: time.Now().UTC(),
+	}
+	_, err := b.graphCollection().InsertOne(context.Background(), graphMetas)
+	return err
+}
+
+func (b *Backend) GraphCompleted(graphUUID string, graphVertexesCount int) (bool, error) {
+	graphMeta, err := b.getGraphMeta(graphUUID)
+	if err != nil {
+		return false, err
+	}
+	taskUUIDs := make([]string, 0)
+	for _, s := range graphMeta.Vertexes {
+		taskUUIDs = append(taskUUIDs, s.UUID)
+	}
+	taskStates, err := b.getStates(taskUUIDs...)
+	if err != nil {
+		return false, err
+	}
+
+	var countSuccessTasks = 0
+	for _, taskState := range taskStates {
+		if taskState.IsCompleted() {
+			countSuccessTasks++
+		}
+	}
+
+	return countSuccessTasks == graphVertexesCount, nil
+}
+
+func (b *Backend) GraphStates(graphUUID string) (*tasks.Graph, error) {
+	graphMeta, err := b.getGraphMeta(graphUUID)
+	if err != nil {
+		return nil, err
+	}
+	return &tasks.Graph{
+		GraphUUID: graphMeta.GraphUUID,
+		VexNum:    graphMeta.VexNum,
+		ArcNum:    graphMeta.ArcNum,
+		Vertexes:  graphMeta.Vertexes,
+		Edge:      graphMeta.Edge,
+		EdgeCopy:  graphMeta.EdgeCopy,
+	}, nil
+}
+
+func (b *Backend) UpdateGraphStates(graph *tasks.Graph) error {
+	query := bson.M{
+		"_id": graph.GraphUUID,
+	}
+	change := bson.M{
+		"$set": bson.M{
+			"edge": graph.Edge,
+		},
+	}
+
+	_, err := b.graphCollection().UpdateOne(context.Background(), query, change, options.Update())
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (b *Backend) getGraphMeta(graphUUID string) (*tasks.GraphMeta, error) {
+	graphMeta := &tasks.GraphMeta{}
+	query := bson.M{"_id": graphUUID}
+
+	err := b.graphCollection().FindOne(context.Background(), query).Decode(graphMeta)
+	if err != nil {
+		return nil, err
+	}
+	return graphMeta, nil
+}
+
+// lockGraphMeta acquires lock on graphUUID document
+func (b *Backend) lockGraphMeta(graphUUID string) error {
+	query := bson.M{
+		"_id":  graphUUID,
+		"lock": false,
+	}
+	change := bson.M{
+		"$set": bson.M{
+			"lock": true,
+		},
+	}
+
+	_, err := b.graphCollection().UpdateOne(context.Background(), query, change, options.Update().SetUpsert(true))
+
+	return err
+}
+
+// unlockGraphMeta releases lock on graphUUID document
+func (b *Backend) unlockGraphMeta(graphUUID string) error {
+	update := bson.M{"$set": bson.M{"lock": false}}
+	_, err := b.graphCollection().UpdateOne(context.Background(), bson.M{"_id": graphUUID}, update, options.Update())
 	return err
 }
 

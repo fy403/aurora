@@ -16,6 +16,7 @@ import (
 	"aurora/internal/opentracing/tracing"
 	"aurora/internal/tasks"
 	"aurora/internal/utils"
+	algorithm "aurora/internal/utils/algorithm"
 
 	backendsiface "aurora/internal/backends/iface"
 	brokersiface "aurora/internal/brokers/iface"
@@ -171,11 +172,17 @@ func (server *Server) SendTask(signature *tasks.Signature) (*result.AsyncResult,
 
 // SendChainTask will extract tracer context info from header and update now span into header
 func (server *Server) SendChainTask(signature *tasks.Signature) (*result.AsyncResult, error) {
-	// Try to extract the span context from the carrier.
-	span := tracing.StartSpanFromHeaders(signature.Headers, "SendChainTask")
+	return server.SendChainTaskWithContext(context.Background(), signature)
+}
+
+// SendChainTaskWithContext will inject the trace context in the signature headers before publishing it
+func (server *Server) SendChainTaskWithContext(ctx context.Context, signature *tasks.Signature) (*result.AsyncResult, error) {
+	span, _ := opentracing.StartSpanFromContext(ctx, "SendChainTask", tracing.ProducerOption(), tracing.AuroraTag)
 	defer span.Finish()
+
 	// tag the span with some info about the signature
-	tracing.AnnotateSpanWithSignatureInfo(span, signature)
+	signature.Headers = tracing.HeadersWithSpan(signature.Headers, span)
+
 	// update signature`s span info into now span
 	// inject the tracing span into the tasks OnSuccess signature headers
 	for _, sig := range signature.OnSuccess {
@@ -215,18 +222,16 @@ func (server *Server) SendChainWithContext(ctx context.Context, chain *tasks.Cha
 	defer span.Finish()
 
 	tracing.AnnotateSpanWithChainInfo(span, chain)
-
-	return server.SendChain(chain)
-}
-
-// SendChain triggers a chain of tasks
-func (server *Server) SendChain(chain *tasks.Chain) (*result.ChainAsyncResult, error) {
 	_, err := server.SendChainTask(chain.Tasks[0])
 	if err != nil {
 		return nil, err
 	}
-
 	return result.NewChainAsyncResult(chain.Tasks, server.backend), nil
+}
+
+// SendChain triggers a chain of tasks
+func (server *Server) SendChain(chain *tasks.Chain) (*result.ChainAsyncResult, error) {
+	return server.SendChainWithContext(context.Background(), chain)
 }
 
 // SendGroupWithContext will inject the trace context in all the signature headers before publishing it
@@ -317,7 +322,7 @@ func (server *Server) SendChordWithContext(ctx context.Context, chord *tasks.Cho
 
 	tracing.AnnotateSpanWithChordInfo(span, chord, sendConcurrency)
 
-	_, err := server.SendGroupWithContext(ctx, chord.Group, sendConcurrency)
+	_, err := server.SendGroupWithContext(opentracing.ContextWithSpan(ctx, span), chord.Group, sendConcurrency)
 	if err != nil {
 		return nil, err
 	}
@@ -336,14 +341,16 @@ func (server *Server) SendChord(chord *tasks.Chord, sendConcurrency int) (*resul
 
 // SendChordCallback will extract trace context and return a new span from signatuire.ChordCallback
 func (server *Server) SendChordCallback(signature *tasks.Signature) (*result.AsyncResult, error) {
-	// Try to extract the span context from the carrier.
-	span := tracing.StartSpanFromHeaders(signature.Headers, "SendChordCallback")
-	defer span.Finish()
-	// tag the span with some info about the signature
-	tracing.AnnotateSpanWithSignatureInfo(span, signature)
-	// update signature`s span info into now span
-	signature.Headers = tracing.HeadersWithSpan(signature.Headers, span)
+	return server.SendChordCallbackWithContext(context.Background(), signature)
+}
 
+// SendChordCallbackWithContext will inject the trace context in the signature headers before publishing it
+func (server *Server) SendChordCallbackWithContext(ctx context.Context, signature *tasks.Signature) (*result.AsyncResult, error) {
+	span, _ := opentracing.StartSpanFromContext(ctx, "SendChordCallback", tracing.ProducerOption(), tracing.AuroraTag)
+	defer span.Finish()
+
+	// tag the span with some info about the signature
+	signature.Headers = tracing.HeadersWithSpan(signature.Headers, span)
 	// Make sure result backend is defined
 	if server.backend == nil {
 		return nil, errors.New("Result backend required")
@@ -494,4 +501,73 @@ func (server *Server) RegisterPeriodicChord(spec, name string, sendConcurrency i
 
 	_, err = server.scheduler.AddFunc(spec, f)
 	return err
+}
+
+// SendGraph triggers a graph of tasks
+func (server *Server) SendGraph(graph *tasks.Graph) ([]*result.AsyncResult, error) {
+	return server.SendGraphWithContext(context.Background(), graph)
+}
+
+func (server *Server) SendGraphWithContext(ctx context.Context, graph *tasks.Graph) ([]*result.AsyncResult, error) {
+	span, _ := opentracing.StartSpanFromContext(ctx, "SendGraph", tracing.ProducerOption(), tracing.AuroraTag, tracing.WorkflowGroupTag)
+	defer span.Finish()
+
+	tracing.AnnotateSpanWithGraphInfo(span, graph)
+
+	// Make sure result backend is defined
+	if server.backend == nil {
+		return nil, errors.New("Result backend required")
+	}
+
+	asyncResults := make([]*result.AsyncResult, len(graph.Vertexes))
+
+	errorsChan := make(chan error, len(graph.Vertexes)*2)
+
+	// Init group
+	server.backend.InitGraph(graph)
+
+	// Init the tasks Pending state first
+	for i, signature := range graph.Vertexes {
+		if err := server.backend.SetStatePending(signature); err != nil {
+			errorsChan <- err
+			continue
+		}
+		asyncResults[i] = result.NewAsyncResult(signature, server.backend)
+	}
+
+	// TopologySort
+	initialTasks, ok := algorithm.TopologySort(graph)
+	if !ok {
+		return nil, errors.New("TopologySort failed")
+	}
+
+	var wg sync.WaitGroup
+	wg.Add(len(initialTasks))
+
+	for _, signature := range initialTasks {
+		go func(s *tasks.Signature) {
+			defer wg.Done()
+
+			// Publish task
+			err := server.broker.Publish(ctx, s)
+
+			if err != nil {
+				errorsChan <- fmt.Errorf("Publish message error: %s", err)
+				return
+			}
+		}(signature)
+	}
+
+	done := make(chan int)
+	go func() {
+		wg.Wait()
+		done <- 1
+	}()
+
+	select {
+	case err := <-errorsChan:
+		return asyncResults, err
+	case <-done:
+		return asyncResults, nil
+	}
 }

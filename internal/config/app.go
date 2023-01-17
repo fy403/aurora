@@ -16,6 +16,7 @@ type AppConfig struct {
 	Auth        *Auth
 	Center      *Config
 	Worker      *Config
+	Web         *Web
 }
 
 type Files struct {
@@ -37,6 +38,12 @@ type Auth struct {
 	Old_encryption_key     string
 	DefaultSessionOption   *sessions.Options
 	Users                  map[string]string
+}
+type Web struct {
+	StaticFS bool
+	WebIndex string
+	WebAddr  string
+	FilePath string
 }
 
 var defaultAppConfig *AppConfig
