@@ -10,9 +10,9 @@ import (
 
 // Arg represents a single argument passed to invocation fo a task
 type Arg struct {
-	Name  string      `bson:"name"`
-	Type  string      `bson:"type"`
-	Value interface{} `bson:"value"`
+	// Name  string      `json:"name" bson:"name"`
+	Type  string      `json:"type" bson:"type"`
+	Value interface{} `json:"value" bson:"value"`
 }
 
 // Headers represents the headers which should be used to direct the task
@@ -44,34 +44,35 @@ func (h Headers) ForeachKey(handler func(key, val string) error) error {
 
 // Signature represents a single task invocation
 type Signature struct {
-	UUID           string
-	Name           string
-	RoutingKey     string
-	LabelSelector  map[string]string
-	ETA            *time.Time
-	GroupUUID      string
-	GroupTaskCount int
-	GraphUUID      string
-	GraphTaskCount int
-	Args           []Arg
-	Headers        Headers
-	Priority       uint8
-	Immutable      bool
-	RetryCount     int
-	RetryTimeout   int
-	OnSuccess      []*Signature
-	OnError        []*Signature
-	ChordCallback  *Signature
+	ID             string            `json:"id"`
+	UUID           string            `json:"uuid"`
+	Name           string            `json:"name"`
+	RoutingKey     string            `json:"routing_key"`
+	LabelSelector  map[string]string `json:"label_selector"`
+	ETA            *time.Time        `json:"eta"`
+	GroupUUID      string            `json:"group_uuid"`
+	GroupTaskCount int               `json:"group_task_count"`
+	GraphUUID      string            `json:"graph_uuid"`
+	GraphTaskCount int               `json:"graph_task_count"`
+	Args           []Arg             `json:"args"`
+	Headers        Headers           `json:"headers"`
+	Priority       uint8             `json:"priority"`
+	Immutable      bool              `json:"immutable"`
+	RetryCount     int               `json:"retry_count"`
+	RetryTimeout   int               `json:"retry_timeout"`
+	OnSuccess      []*Signature      `json:"on_success"`
+	OnError        []*Signature      `json:"on_error"`
+	ChordCallback  *Signature        `json:"chord_callback"`
 	//MessageGroupId for Broker, e.g. SQS
-	BrokerMessageGroupId string
+	BrokerMessageGroupId string `json:"broker_message_group_id"`
 	//ReceiptHandle of SQS Message
-	SQSReceiptHandle string
+	SQSReceiptHandle string `json:"sqs_receipt_handle"`
 	// StopTaskDeletionOnError used with sqs when we want to send failed messages to dlq,
 	// and don't want aurora to delete from source queue
-	StopTaskDeletionOnError bool
+	StopTaskDeletionOnError bool `json:"stop_task_deletion_on_error"`
 	// IgnoreWhenTaskNotRegistered auto removes the request when there is no handeler available
 	// When this is true a task with no handler will be ignored and not placed back in the queue
-	IgnoreWhenTaskNotRegistered bool
+	IgnoreWhenTaskNotRegistered bool `json:"ignore_when_task_not_registered"`
 }
 
 // NewSignature creates a new task signature

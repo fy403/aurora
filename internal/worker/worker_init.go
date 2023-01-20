@@ -18,7 +18,6 @@ import (
 	"aurora/internal/model"
 	"aurora/internal/opentracing/tracers"
 	"aurora/internal/request"
-	"aurora/internal/utils"
 
 	"aurora/internal/log"
 	"aurora/internal/tasks"
@@ -55,7 +54,7 @@ func (worker *Worker) register() (err error) {
 	if len(labels) == 0 {
 		return nil
 	}
-	queueName := fmt.Sprintf("spec_queue:%d", utils.Hash32WithMap(labels))
+	queueName := uuid.New().String()
 	go func() {
 		for {
 			// CreateSpecQueue and Continuous consumption
@@ -73,13 +72,34 @@ func (worker *Worker) register() (err error) {
 		}
 	}()
 	_id := "worker_" + uuid.New().String()
+	handlers := []*request.Handler{}
+	for _, handler := range model.ExtantTaskMap {
+		handlers = append(handlers, handler)
+	}
 	req := request.WorkerRequest{
 		UUID:      _id,
 		SpecQueue: queueName,
 		Metrics:   nil,
+		Handlers:  handlers,
 		Labels:    worker.cfg.Worker.Labels,
 		Timestamp: time.Now().Unix(),
 	}
+
+	results, err := worker.server.GetBackend().GetAllWorkersInfo()
+	var filterResults []*request.WorkerResponse
+	// Purge invalid worker
+	for idx, result := range results {
+		if isValid := result.IsValid(worker.cfg.Center.BrokerApi); !isValid || result.SpecQueue == queueName {
+			results[idx] = nil
+			req := request.WorkerRequest{
+				UUID: result.UUID,
+			}
+			worker.server.GetBackend().PurgeWorkerInfo(&req)
+			continue
+		}
+		filterResults = append(filterResults, result)
+	}
+
 	err = worker.server.GetBackend().SetWorkerInfo(&req)
 	return
 }

@@ -1,3 +1,7 @@
 package model
 
-var ExtantTaskMap map[string]interface{} = make(map[string]interface{})
+import (
+	"aurora/internal/request"
+)
+
+var ExtantTaskMap map[string]*request.Handler = make(map[string]*request.Handler)

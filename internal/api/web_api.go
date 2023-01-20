@@ -114,6 +114,7 @@ func (api *Api) Run() (err error) {
 		}
 
 		ctx.Next()
+
 	})
 
 	// 静态资源浏览
@@ -185,6 +186,10 @@ func (api *Api) initHandler(app *gin.Engine) {
 	taskHandle := new(taskHandler)
 	taskGroup.POST("/send", api.WarpHandle(taskHandle.send))
 	taskGroup.POST("/touch", api.WarpHandle(taskHandle.touch))
+
+	workerGroup := apiGroup.Group("/worker")
+	workerHandler := new(workerHandler)
+	workerGroup.GET("/list", api.WarpHandle(workerHandler.list))
 }
 
 func (api *Api) initMetrics() (err error) {

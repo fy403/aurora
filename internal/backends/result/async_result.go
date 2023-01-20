@@ -269,3 +269,8 @@ func (chordAsyncResult *ChordAsyncResult) GetChordAyncResults() *AsyncResult {
 func (chainAsyncResults *ChainAsyncResult) GetAsyncResults() []*AsyncResult {
 	return chainAsyncResults.asyncResults
 }
+
+// GetChordAyncResults returns result of a chord`s chordAyncResults
+func (chainAsyncResults *ChainAsyncResult) GetChainAyncResults() *AsyncResult {
+	return chainAsyncResults.asyncResults[len(chainAsyncResults.asyncResults)-1]
+}

@@ -1,7 +1,12 @@
 package model
 
+import "aurora/internal/request"
+
 func init() {
-	ExtantTaskMap["add"] = Add
+	ExtantTaskMap["add"] = &request.Handler{
+		Usage: "将任意个数int64相加, 返回int64, error",
+		Fn:    Add,
+	}
 }
 
 // Add ...

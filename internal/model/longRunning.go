@@ -2,11 +2,16 @@ package model
 
 import (
 	"aurora/internal/log"
+	"aurora/internal/request"
 	"time"
 )
 
 func init() {
-	ExtantTaskMap["long_running_task"] = LongRunningTask
+	ExtantTaskMap["long_running_task"] = &request.Handler{
+		Name:  "long_running_task",
+		Usage: "默认长时间运行指定时间,接受一个int64类型参数作为默认时间,单位秒,返回error",
+		Fn:    LongRunningTask,
+	}
 }
 
 // LongRunningTask ...

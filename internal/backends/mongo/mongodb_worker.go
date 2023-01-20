@@ -8,20 +8,13 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-type WorkerMeta struct {
-	UUID      string            `bson:"_id"`
-	SpecQueue string            `json:"spec_queue"`
-	Metrics   map[string]string `bson:"metrics"`
-	Labels    map[string]string `bson:"labels"`
-	CreateAt  int64             `bson:"created_at"`
-}
-
 // SetWorkerInfo sets worker runtime info
 func (b *Backend) SetWorkerInfo(req *request.WorkerRequest) error {
-	workerMeta := &WorkerMeta{
+	workerMeta := &request.WorkerMeta{
 		UUID:      req.UUID,
 		SpecQueue: req.SpecQueue,
 		Metrics:   req.Metrics,
+		Handlers:  req.Handlers,
 		Labels:    req.Labels,
 		CreateAt:  req.Timestamp,
 	}
@@ -45,7 +38,7 @@ func (b *Backend) GetAllWorkersInfo() ([]*request.WorkerResponse, error) {
 	// exhausted or there is an error getting the next document.
 	for cursor.Next(context.TODO()) {
 		// A new result variable should be declared for each document.
-		var result WorkerMeta
+		var result request.WorkerMeta
 		if err := cursor.Decode(&result); err != nil {
 			return nil, err
 		}
@@ -53,6 +46,7 @@ func (b *Backend) GetAllWorkersInfo() ([]*request.WorkerResponse, error) {
 			UUID:      result.UUID,
 			SpecQueue: result.SpecQueue,
 			Metrics:   result.Metrics,
+			Handlers:  result.Handlers,
 			Labels:    result.Labels,
 			Timestamp: result.CreateAt,
 		})
@@ -65,10 +59,11 @@ func (b *Backend) GetAllWorkersInfo() ([]*request.WorkerResponse, error) {
 
 // UpdateWorkerInfo updates worker runtime info
 func (b *Backend) UpdateWorkerInfo(req *request.WorkerRequest) error {
-	workerMeta := &WorkerMeta{
+	workerMeta := &request.WorkerMeta{
 		UUID:      req.UUID,
 		SpecQueue: req.SpecQueue,
 		Metrics:   req.Metrics,
+		Handlers:  req.Handlers,
 		Labels:    req.Labels,
 		CreateAt:  req.Timestamp,
 	}

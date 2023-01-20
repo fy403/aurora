@@ -90,6 +90,7 @@ func (*taskHandler) send(wait *WaitConn, req request.CenterRequest) {
 		tasks.CleanSignatureSensitiveInfo(asyncResultPtr.Signature)
 		responseOBJ.TaskResponses = append(responseOBJ.TaskResponses, &request.TaskResponse{
 			Results: tasks.InterfaceReadableResults(results),
+			State:   asyncResultPtr.GetState().State,
 			Signatures: []*tasks.Signature{
 				asyncResultPtr.Signature,
 			},
@@ -118,6 +119,7 @@ func (*taskHandler) send(wait *WaitConn, req request.CenterRequest) {
 			tasks.CleanSignatureSensitiveInfo(asyncResultPtr.Signature)
 			responseOBJ.TaskResponses = append(responseOBJ.TaskResponses, &request.TaskResponse{
 				Results: tasks.InterfaceReadableResults(results),
+				State:   asyncResultPtr.GetState().State, // 每个state
 				Signatures: []*tasks.Signature{
 					asyncResultPtr.Signature,
 				},
@@ -145,6 +147,7 @@ func (*taskHandler) send(wait *WaitConn, req request.CenterRequest) {
 			tasks.CleanSignatureSensitiveInfo(asyncResultPtr.Signature)
 			responseOBJ.TaskResponses = append(responseOBJ.TaskResponses, &request.TaskResponse{
 				Results: tasks.InterfaceReadableResults(results),
+				State:   asyncResultPtr.GetState().State, // 每个state
 				Signatures: []*tasks.Signature{
 					asyncResultPtr.Signature,
 				},
@@ -184,6 +187,7 @@ func (*taskHandler) send(wait *WaitConn, req request.CenterRequest) {
 		responseOBJ.TaskResponses = append(responseOBJ.TaskResponses, &request.TaskResponse{
 			Results:    tasks.InterfaceReadableResults(results),
 			Signatures: signatures,
+			State:      chordAsyncResult.GetChordAyncResults().GetState().State, // callback的state
 			CallBack:   chordAsyncResult.GetChordAyncResults().Signature,
 		})
 	case "chain":
@@ -200,7 +204,8 @@ func (*taskHandler) send(wait *WaitConn, req request.CenterRequest) {
 		}
 
 		var signatures []*tasks.Signature
-		for _, asyncResultPtr := range chainAsyncResult.GetAsyncResults() {
+		var asyncResultPtr *result.AsyncResult
+		for _, asyncResultPtr = range chainAsyncResult.GetAsyncResults() {
 			// Clean sensitive information
 			tasks.CleanSignatureSensitiveInfo(asyncResultPtr.Signature)
 			signatures = append(signatures, asyncResultPtr.Signature)
@@ -212,6 +217,7 @@ func (*taskHandler) send(wait *WaitConn, req request.CenterRequest) {
 		}
 		responseOBJ.TaskResponses = append(responseOBJ.TaskResponses, &request.TaskResponse{
 			Results:    tasks.InterfaceReadableResults(results),
+			State:      asyncResultPtr.GetState().State, // 最后一个的状态
 			Signatures: signatures,
 		})
 	default:
@@ -274,7 +280,6 @@ func (*taskHandler) touch(wait *WaitConn, req request.CenterRequest) {
 		asyncResult := result.NewAsyncResult(req.Signatures[0], defaultApi.server.GetBackend())
 		if !asyncResult.GetState().IsSuccess() {
 			hasFinished = false
-			break
 		}
 		results, err := asyncResult.Touch()
 		if err != nil {
@@ -283,6 +288,7 @@ func (*taskHandler) touch(wait *WaitConn, req request.CenterRequest) {
 		}
 		responseOBJ.TaskResponses = append(responseOBJ.TaskResponses, &request.TaskResponse{
 			Results:    tasks.InterfaceReadableResults(results),
+			State:      asyncResult.GetState().State, // 每个state
 			Signatures: req.Signatures,
 		})
 	case "group", "graph":
@@ -290,7 +296,6 @@ func (*taskHandler) touch(wait *WaitConn, req request.CenterRequest) {
 			asyncResult := result.NewAsyncResult(signature, defaultApi.server.GetBackend())
 			if !asyncResult.GetState().IsSuccess() {
 				hasFinished = false
-				break
 			}
 			results, err := asyncResult.Touch()
 			if err != nil {
@@ -299,6 +304,7 @@ func (*taskHandler) touch(wait *WaitConn, req request.CenterRequest) {
 			}
 			responseOBJ.TaskResponses = append(responseOBJ.TaskResponses, &request.TaskResponse{
 				Results: tasks.InterfaceReadableResults(results),
+				State:   asyncResult.GetState().State, // 每个state
 				Signatures: []*tasks.Signature{
 					signature,
 				},
@@ -328,6 +334,7 @@ func (*taskHandler) touch(wait *WaitConn, req request.CenterRequest) {
 		}
 		responseOBJ.TaskResponses = append(responseOBJ.TaskResponses, &request.TaskResponse{
 			Results:    tasks.InterfaceReadableResults(results),
+			State:      chordAsyncResult.GetChordAyncResults().GetState().State,
 			Signatures: req.Signatures,
 			CallBack:   req.CallBack,
 		})
@@ -349,8 +356,8 @@ func (*taskHandler) touch(wait *WaitConn, req request.CenterRequest) {
 			break
 		}
 		responseOBJ.TaskResponses = append(responseOBJ.TaskResponses, &request.TaskResponse{
-			Results:    tasks.InterfaceReadableResults(results),
-			Signatures: req.Signatures,
+			Results: tasks.InterfaceReadableResults(results),
+			State:   chainAsyncResult.GetChainAyncResults().GetState().State,
 		})
 	default:
 		err := errors.New("Unexpected task type: " + v)

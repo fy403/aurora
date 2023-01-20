@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"reflect"
 	"sync"
 	"time"
 
@@ -14,6 +15,7 @@ import (
 	"aurora/internal/config"
 	"aurora/internal/log"
 	"aurora/internal/opentracing/tracing"
+	"aurora/internal/request"
 	"aurora/internal/tasks"
 	"aurora/internal/utils"
 	algorithm "aurora/internal/utils/algorithm"
@@ -92,14 +94,28 @@ func (server *Server) SetPreTaskHandler(handler func(*tasks.Signature)) {
 }
 
 // RegisterTasks registers all tasks at once
-func (server *Server) RegisterTasks(namedTaskFuncs map[string]interface{}) error {
-	for _, task := range namedTaskFuncs {
-		if err := tasks.ValidateTask(task); err != nil {
+func (server *Server) RegisterTasks(namedTaskFuncs map[string]*request.Handler) error {
+	// TODO：解析handler
+	for name, handler := range namedTaskFuncs {
+		if err := tasks.ValidateTask(handler.Fn); err != nil {
 			return err
 		}
-	}
-	for k, v := range namedTaskFuncs {
-		server.registeredTasks.Store(k, v)
+		server.registeredTasks.Store(name, handler.Fn)
+
+		typ := reflect.TypeOf(handler.Fn)
+		for idx := 0; idx < typ.NumIn(); idx++ {
+			arg := tasks.Arg{
+				Type: typ.In(idx).String(),
+			}
+			handler.InArgs = append(handler.InArgs, arg)
+		}
+		for idx := 0; idx < typ.NumOut(); idx++ {
+			arg := tasks.Arg{
+				Type: typ.Out(idx).String(),
+			}
+			handler.OutArgs = append(handler.OutArgs, arg)
+		}
+		handler.Name = name
 	}
 	server.broker.SetRegisteredTaskNames(server.GetRegisteredTaskNames())
 	return nil

@@ -5,7 +5,10 @@ import (
 )
 
 func init() {
-	ExtantTaskMap["panic"] = PanicTask
+	// ExtantTaskMap["panic"] = &request.Handler{
+	// 	Usage: "无参数, 直接返回string, error",
+	// 	Fn:    PanicTask,
+	// }
 }
 
 // PanicTask ...

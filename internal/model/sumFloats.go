@@ -1,7 +1,12 @@
 package model
 
+import "aurora/internal/request"
+
 func init() {
-	ExtantTaskMap["sum_floats"] = SumFloats
+	ExtantTaskMap["sum_floats"] = &request.Handler{
+		Usage: "将任意个数float64累加, 返回float64, error",
+		Fn:    SumFloats,
+	}
 }
 
 // SumFloats ...

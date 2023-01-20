@@ -142,9 +142,7 @@ func NewGraph(relations []map[int]int, signatures ...*Signature) (*Graph, error)
 			arcNum++
 		}
 	}
-
 	copy(edgeCopy, edge)
-
 	return &Graph{
 		GraphUUID: graphID,
 		VexNum:    vexNum,

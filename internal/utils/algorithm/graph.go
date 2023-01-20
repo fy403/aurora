@@ -32,12 +32,12 @@ func TopologySort(graph *tasks.Graph) (tasks []*tasks.Signature, ok bool) {
 
 func checkLoop(graph *tasks.Graph) (ok bool) {
 	ok = true
+	visited := make([]bool, graph.VexNum)
 	for i := 0; i < graph.VexNum; i++ {
-		visited := make([]bool, graph.VexNum)
-		dfs(graph, i, visited, &ok)
-		if !ok {
-			return
+		for idx := range visited {
+			visited[idx] = false
 		}
+		dfs(graph, i, visited, &ok)
 	}
 	return
 }
@@ -52,6 +52,7 @@ func dfs(graph *tasks.Graph, v int, visited []bool, ok *bool) {
 			return
 		}
 	}
+	visited[v] = false
 }
 
 func getNeighbor(graph *tasks.Graph, v int) (w int) {
