@@ -28,6 +28,7 @@ type Backend struct {
 	wc     *mongo.Collection
 	gmc    *mongo.Collection
 	gc     *mongo.Collection
+	fc     *mongo.Collection
 	once   sync.Once
 }
 
@@ -293,6 +294,13 @@ func (b *Backend) graphCollection() *mongo.Collection {
 	return b.gc
 }
 
+func (b *Backend) faasCollection() *mongo.Collection {
+	b.once.Do(func() {
+		b.connect()
+	})
+	return b.fc
+}
+
 // connect creates the underlying mgo connection if it doesn't exist
 // creates required indexes for our collections
 func (b *Backend) connect() error {
@@ -312,6 +320,7 @@ func (b *Backend) connect() error {
 	b.gmc = b.client.Database(database).Collection("group_metas")
 	b.wc = b.client.Database(database).Collection("workers")
 	b.gc = b.client.Database(database).Collection("graphs")
+	b.fc = b.client.Database(database).Collection("faas_metas")
 
 	err = b.createMongoIndexes(database)
 	if err != nil {

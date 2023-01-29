@@ -39,5 +39,11 @@ type Backend interface {
 	UpdateWorkerInfo(req *request.WorkerRequest) error
 	PurgeWorkerInfo(req *request.WorkerRequest) error
 
+	// Faas related function
+	SetFaasInfo(req *request.OFDBRequest) error
+	GetAllFaasInfo() ([]*request.OFDBResponse, error)
+	UpdateFaasInfo(req *request.OFDBRequest) error
+	PurgeFaasInfo(req *request.OFDBRequest) error
+
 	TestConnect() error
 }

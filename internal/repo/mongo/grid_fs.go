@@ -12,7 +12,6 @@ import (
 	"sync"
 	"time"
 
-	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/gridfs"
@@ -32,57 +31,52 @@ func New(cnf *config.Config) (iface.Repo, error) {
 	}, nil
 }
 
-func (r *Repo) findFile(fileName string) (fileID primitive.ObjectID, err error) {
+// func (r *Repo) findFile(fileName string) (fileID primitive.ObjectID, err error) {
+// 	bucket := r.getGridFSBucket("")
+// 	filter := bson.D{
+// 		{"filename", fileName},
+// 	}
+// 	cursor, err := bucket.Find(filter)
+// 	if err != nil {
+// 		log.Runtime().Error(err.Error())
+// 	}
+// 	defer func() {
+// 		if err := cursor.Close(context.TODO()); err != nil {
+// 			log.Runtime().Error(err.Error())
+// 		}
+// 	}()
+
+// 	type gridfsFile struct {
+// 		ID        string `bson:"_id"`
+// 		ChunkSize int64  `bson:"chunkSize"`
+// 		Name      string `bson:"filename"`
+// 		Length    int64  `bson:"length"`
+// 	}
+// 	var foundFiles []gridfsFile
+// 	if err = cursor.All(context.TODO(), &foundFiles); err != nil {
+// 		log.Runtime().Error(err.Error())
+// 	}
+// 	if len(foundFiles) > 0 {
+// 		fileID, err = primitive.ObjectIDFromHex(foundFiles[0].ID)
+// 		return
+// 	}
+// 	err = fmt.Errorf("fileName %s not found", fileName)
+// 	return
+// }
+
+func (r *Repo) UploadFile(fileName string, fileContent []byte) (primitive.ObjectID, error) {
 	bucket := r.getGridFSBucket("")
-	filter := bson.D{
-		{"filename", fileName},
-	}
-	cursor, err := bucket.Find(filter)
+	fileID, err := bucket.UploadFromStream(fileName, bytes.NewBuffer(fileContent))
 	if err != nil {
 		log.Runtime().Error(err.Error())
+		return primitive.NilObjectID, err
 	}
-	defer func() {
-		if err := cursor.Close(context.TODO()); err != nil {
-			log.Runtime().Error(err.Error())
-		}
-	}()
-
-	type gridfsFile struct {
-		ID        string `bson:"_id"`
-		ChunkSize int64  `bson:"chunkSize"`
-		Name      string `bson:"filename"`
-		Length    int64  `bson:"length"`
-	}
-	var foundFiles []gridfsFile
-	if err = cursor.All(context.TODO(), &foundFiles); err != nil {
-		log.Runtime().Error(err.Error())
-	}
-	if len(foundFiles) > 0 {
-		fileID, err = primitive.ObjectIDFromHex(foundFiles[0].ID)
-		return
-	}
-	err = fmt.Errorf("fileName %s not found", fileName)
-	return
+	return fileID, nil
 }
 
-func (r *Repo) UploadFile(fileName string, fileContent []byte) error {
+func (r *Repo) UpdateFile(fileID primitive.ObjectID, fileName string, fileContent []byte) error {
 	bucket := r.getGridFSBucket("")
-	_, err := bucket.UploadFromStream(fileName, bytes.NewBuffer(fileContent))
-	if err != nil {
-		log.Runtime().Error(err.Error())
-		return err
-	}
-	return nil
-}
-
-func (r *Repo) UpdateFile(fileName string, fileContent []byte) error {
-	bucket := r.getGridFSBucket("")
-	fileID, err := r.findFile(fileName)
-	if err != nil {
-		log.Runtime().Error(err.Error())
-		return err
-	}
-	err = r.DeleteFile(fileName)
+	err := r.DeleteFile(fileID)
 	if err != nil {
 		log.Runtime().Error(err.Error())
 		return err
@@ -95,13 +89,8 @@ func (r *Repo) UpdateFile(fileName string, fileContent []byte) error {
 	return nil
 }
 
-func (r *Repo) DeleteFile(fileName string) error {
+func (r *Repo) DeleteFile(fileID primitive.ObjectID) error {
 	bucket := r.getGridFSBucket("")
-	fileID, err := r.findFile(fileName)
-	if err != nil {
-		log.Runtime().Error(err.Error())
-		return err
-	}
 	if err := bucket.Delete(fileID); err != nil && err != gridfs.ErrFileNotFound {
 		log.Runtime().Error(err.Error())
 		return err
@@ -109,10 +98,10 @@ func (r *Repo) DeleteFile(fileName string) error {
 	return nil
 }
 
-func (r *Repo) DownloadFile(fileName string) (fileContent []byte, err error) {
+func (r *Repo) DownloadFile(fileID primitive.ObjectID) (fileContent []byte, err error) {
 	bucket := r.getGridFSBucket("")
 	fileBuffer := bytes.NewBuffer(nil)
-	if _, err = bucket.DownloadToStreamByName(fileName, fileBuffer); err != nil {
+	if _, err = bucket.DownloadToStream(fileID, fileBuffer); err != nil {
 		log.Runtime().Error(err.Error())
 		return nil, err
 	}

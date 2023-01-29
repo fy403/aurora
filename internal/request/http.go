@@ -2,6 +2,8 @@ package request
 
 import (
 	"aurora/internal/tasks"
+
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 type CenterRequest struct {
@@ -59,7 +61,7 @@ type WorkerMeta struct {
 	Metrics   map[string]string `bson:"metrics"`
 	Handlers  []*Handler        `bson:"handlers"`
 	Labels    map[string]string `bson:"labels"`
-	CreateAt  int64             `bson:"created_at"`
+	CreatedAt int64             `bson:"created_at"`
 }
 
 type Handler struct {
@@ -73,4 +75,39 @@ type Handler struct {
 type RabbitMQApi struct {
 	Consumers int    `json:"consumers"`
 	State     string `json:"state"`
+}
+type OFDBRequest struct {
+	UUID         string `json:"uuid"`
+	Driver       string `json:"driver"`
+	Name         string `json:"name"`
+	Lang         string `json:"lang"`
+	URL          string `json:"url"`
+	Content      []byte `json:"content"`
+	Dependencies []byte `json:"dependencies"`
+	Status       string `json:"status"`
+	Timestamp    int64  `json:"timestamp"`
+}
+
+type OFDBResponse struct {
+	UUID         string `json:"uuid"`
+	Driver       string `json:"driver"`
+	Name         string `json:"name"`
+	Lang         string `json:"lang"`
+	URL          string `json:"url"`
+	Content      []byte `json:"content"`
+	Dependencies []byte `json:"dependencies"`
+	Status       string `json:"status"`
+	Timestamp    int64  `json:"timestamp"`
+}
+
+type OFDBMeta struct {
+	UUID                 string             `bson:"_id"`
+	Driver               string             `bson:"driver"`
+	Name                 string             `bson:"name"`
+	Lang                 string             `bson:"lang"`
+	URL                  string             `json:"url"`
+	Content_File_ID      primitive.ObjectID `bson:"content_file_id"`
+	Dependencies_File_ID primitive.ObjectID `bson:"dependencies_file_id"`
+	Status               string             `bson:"status"`
+	CreatedAt            int64              `bson:"created_at"`
 }

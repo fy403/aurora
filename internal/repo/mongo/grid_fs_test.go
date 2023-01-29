@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 func NewRepo() (iface.Repo, error) {
@@ -23,7 +24,7 @@ func NewRepo() (iface.Repo, error) {
 }
 
 func TestNew(t *testing.T) {
-
+	t.Parallel()
 	if os.Getenv("MONGODB_URL") == "" {
 		t.Skip("MONGODB_URL is not defined")
 	}
@@ -32,9 +33,15 @@ func TestNew(t *testing.T) {
 	if assert.NoError(t, err) {
 		assert.NotNil(t, repo)
 	}
+
+	fileID := UploadFile(t)
+	DownloadFile(t, fileID)
+	UpdateFile(t, fileID)
+	DownloadFile(t, fileID)
+	DeleteFile(t, fileID)
 }
 
-func TestUploadFile(t *testing.T) {
+func UploadFile(t *testing.T) primitive.ObjectID {
 	if os.Getenv("MONGODB_URL") == "" {
 		t.Skip("MONGODB_URL is not defined")
 	}
@@ -44,13 +51,15 @@ func TestUploadFile(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = repo.UploadFile("test.txt", []byte("test content"))
+	fileID, err := repo.UploadFile("test.txt", []byte("test content"))
+
 	if err != nil {
 		t.Fatal(err)
 	}
+	return fileID
 }
 
-func TestUpdateFile(t *testing.T) {
+func UpdateFile(t *testing.T, fileID primitive.ObjectID) {
 	if os.Getenv("MONGODB_URL") == "" {
 		t.Skip("MONGODB_URL is not defined")
 	}
@@ -60,13 +69,13 @@ func TestUpdateFile(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = repo.UpdateFile("test.txt", []byte("new content"))
+	err = repo.UpdateFile(fileID, "test.txt", []byte("new content"))
 	if err != nil {
 		t.Fatal(err)
 	}
 }
 
-func TestDownloadFile(t *testing.T) {
+func DownloadFile(t *testing.T, fileID primitive.ObjectID) {
 	if os.Getenv("MONGODB_URL") == "" {
 		t.Skip("MONGODB_URL is not defined")
 	}
@@ -76,14 +85,14 @@ func TestDownloadFile(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	fileContent, err := repo.DownloadFile("test.txt")
+	fileContent, err := repo.DownloadFile(fileID)
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Logf("content: %s", fileContent)
 }
 
-func TestDeleteFile(t *testing.T) {
+func DeleteFile(t *testing.T, fileID primitive.ObjectID) {
 	if os.Getenv("MONGODB_URL") == "" {
 		t.Skip("MONGODB_URL is not defined")
 	}
@@ -93,7 +102,7 @@ func TestDeleteFile(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = repo.DeleteFile("test.txt")
+	err = repo.DeleteFile(fileID)
 	if err != nil {
 		t.Fatal(err)
 	}

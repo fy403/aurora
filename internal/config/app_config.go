@@ -17,6 +17,15 @@ type AppConfig struct {
 	Center      *Config
 	Worker      *Config
 	Web         *Web
+	Faas        []*Faas
+}
+
+type Faas struct {
+	Driver   string
+	Endpoint string
+	Name     string
+	Password string
+	Prefix   string
 }
 
 type Files struct {

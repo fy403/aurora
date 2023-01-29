@@ -4,6 +4,9 @@ import (
 	"aurora/internal/auth"
 	"aurora/internal/center"
 	"aurora/internal/config"
+	"aurora/internal/faas"
+	"aurora/internal/faas/iface"
+	"aurora/internal/faas/openfaas"
 	"aurora/internal/log"
 	"aurora/internal/request"
 	"fmt"
@@ -83,6 +86,16 @@ func (api *Api) Init() (err error) {
 		return
 	}
 
+	// Initialize Faas instance
+	var fs iface.Faas
+	for _, fsCfg := range api.cfg.Faas {
+		fs, err = openfaas.New(fsCfg, backend)
+		if err != nil {
+			log.Runtime().Fatalf("Can`t create the faas instance: %s, err: %v", fsCfg.Driver, err)
+			return
+		}
+		faas.ExtantFaasMap[fsCfg.Driver] = fs
+	}
 	lock := eagerlock.New()
 	api.server = center.NewServer(cfg, broker, backend, lock)
 	// 本地任务队列：控制连接的并发数
@@ -174,7 +187,6 @@ func (api *Api) initHandler(app *gin.Engine) {
 			"message": "ok",
 			"data":    "",
 		})
-		return
 	})
 
 	authHandle := new(authHandler)
@@ -190,6 +202,15 @@ func (api *Api) initHandler(app *gin.Engine) {
 	workerGroup := apiGroup.Group("/worker")
 	workerHandler := new(workerHandler)
 	workerGroup.GET("/list", api.WarpHandle(workerHandler.list))
+
+	faasGroup := apiGroup.Group("/faas")
+	faasHandler := new(faasHandler)
+	faasGroup.GET("/list", api.WarpHandle(faasHandler.ListInstance))
+	faasGroup.GET("/langs", api.WarpHandle(faasHandler.InstanceSupportedLangs))
+	faasGroup.POST("/create", api.WarpHandle(faasHandler.CreateInstance))
+	faasGroup.POST("/write", api.WarpHandle(faasHandler.WriteInstance))
+	faasGroup.POST("/up", api.WarpHandle(faasHandler.UpInstance))
+	faasGroup.POST("/delete", api.WarpHandle(faasHandler.DeleteInstance))
 }
 
 func (api *Api) initMetrics() (err error) {
