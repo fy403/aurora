@@ -23,8 +23,8 @@ This README is just a fast quick start document. You can find more detailed docu
 - [x] 系统解耦
 - [x] 独立配置
 - [x] 前端管理
-- [ ] 动态句柄，支持所有常见编程语言
-- [ ] Prometheus监控支持
+- [x] 动态句柄
+- [ ] 监控支持
    
 [体验地址]()
 ### 架构模式
@@ -37,7 +37,7 @@ This README is just a fast quick start document. You can find more detailed docu
 ### 关键词
 * `Worker`：负责实现任务消费，处理任务，并更新状态到数据库；
 * `Handler`：具体的任务处理模型，在model目录中定义；
-* `Web`：所有请求的API接口在此处定义。
+* `Web`：所有请求的API接口在此处定义，实际上web目录放前端，api目录放web实例。
 ### 核心部分
 **图任务**
 ![任务模型](./images/workflow.png)
@@ -69,7 +69,7 @@ aurora worker --config=./config/config.toml
 ├───draw   # 架构指南
 ├───images
 └───internal        # 内部所有代码
-    ├───api         # wb前端部署，以及api接口定义
+    ├───api         # web的api接口定义
     ├───app         # 暂未使用
     ├───auth        # 授权模块
     ├───backends    # 后端数据存储
@@ -83,7 +83,7 @@ aurora worker --config=./config/config.toml
     ├───request     # 请求实例定义
     ├───retry       # 重试模块
     ├───tasks       # 任务处理反射模型
-    ├───web         # 前端编译入口
+    ├───web         # 前端部署，编译入口
     └───worker      # 任务处理模型
 ````
 ### 链式追踪,精准定位

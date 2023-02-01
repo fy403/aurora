@@ -95,7 +95,6 @@ func (server *Server) SetPreTaskHandler(handler func(*tasks.Signature)) {
 
 // RegisterTasks registers all tasks at once
 func (server *Server) RegisterTasks(namedTaskFuncs map[string]*request.Handler) error {
-	// TODO：解析handler
 	for name, handler := range namedTaskFuncs {
 		if err := tasks.ValidateTask(handler.Fn); err != nil {
 			return err

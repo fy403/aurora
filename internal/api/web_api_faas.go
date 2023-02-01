@@ -4,6 +4,7 @@ import (
 	"aurora/internal/faas"
 	"aurora/internal/log"
 	"aurora/internal/request"
+	"encoding/base64"
 	"fmt"
 )
 
@@ -51,7 +52,7 @@ func (*faasHandler) CreateInstance(wait *WaitConn, req struct {
 		wait.SetResult(fmt.Sprintf("This driver(%s) not found", req.Driver), "")
 		return
 	}
-	err := fs.New(req.Name, req.Lang, fs.GetConfig().Driver)
+	err := fs.New(req.Name, req.Lang, fs.GetConfig().Prefix)
 	if err != nil {
 		log.Runtime().Infof("Can`t create faas instance, err: %v", err)
 		wait.SetResult(err.Error(), "")
@@ -63,8 +64,8 @@ func (*faasHandler) WriteInstance(wait *WaitConn, req struct {
 	Name         string `json:"name"`
 	Lang         string `json:"lang"`
 	UUID         string `json:"uuid"`
-	Content      []byte `json:"content"`
-	Dependencies []byte `json:"dependencies"`
+	Content      string `json:"content"`
+	Dependencies string `json:"dependencies"`
 }) {
 	log.Runtime().Infof("%s", wait.GetRoute())
 	defer func() { wait.Done() }()
@@ -73,7 +74,19 @@ func (*faasHandler) WriteInstance(wait *WaitConn, req struct {
 		wait.SetResult(fmt.Sprintf("This driver(%s) not found", req.Driver), "")
 		return
 	}
-	err := fs.Write(req.UUID, req.Name, req.Lang, req.Content, req.Dependencies)
+	cnt, err := base64.StdEncoding.DecodeString(req.Content)
+	if err != nil {
+		log.Runtime().Infof("Can`t decode base64 err: %v", err)
+		wait.SetResult(err.Error(), "")
+		return
+	}
+	dep, err := base64.StdEncoding.DecodeString(req.Dependencies)
+	if err != nil {
+		log.Runtime().Infof("Can`t decode base64 err: %v", err)
+		wait.SetResult(err.Error(), "")
+		return
+	}
+	err = fs.Write(req.UUID, req.Name, req.Lang, cnt, dep)
 	if err != nil {
 		log.Runtime().Infof("Can`t write faas instance, err: %v", err)
 		wait.SetResult(err.Error(), "")

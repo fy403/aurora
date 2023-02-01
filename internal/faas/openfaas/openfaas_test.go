@@ -12,7 +12,8 @@ import (
 )
 
 var (
-	id = "020d6cec-ad22-4079-99c7-9ba0e89d3d1b"
+	id   = "67d64e73-0421-4616-9ecf-248e5b751653"
+	name = "go-http-test-2"
 )
 
 func newOpenFaas() (iface.Faas, error) {
@@ -47,7 +48,7 @@ func TestNew(t *testing.T) {
 	if assert.NoError(t, err) {
 		assert.NotNil(t, fs)
 	}
-	err = fs.New("go-demo-test", "golang-http", fs.GetConfig().Prefix)
+	err = fs.New(name, "golang-http", fs.GetConfig().Prefix)
 	assert.NoError(t, err)
 }
 
@@ -60,7 +61,7 @@ func TestUp(t *testing.T) {
 	if assert.NoError(t, err) {
 		assert.NotNil(t, fs)
 	}
-	err = fs.Up(id, "go-demo-test")
+	err = fs.Up(id, name)
 	assert.NoError(t, err)
 }
 
@@ -74,7 +75,7 @@ func TestDelete(t *testing.T) {
 		assert.NotNil(t, fs)
 	}
 	// 去数据库找_id
-	err = fs.Delete(id, "go-demo-test")
+	err = fs.Delete(id, name)
 	assert.NoError(t, err)
 }
 

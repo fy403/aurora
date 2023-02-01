@@ -45,7 +45,6 @@ func (h Headers) ForeachKey(handler func(key, val string) error) error {
 // Signature represents a single task invocation
 type Signature struct {
 	ID             string            `json:"id"`
-	Type           string            `json:"type"`
 	UUID           string            `json:"uuid"`
 	Name           string            `json:"name"`
 	RoutingKey     string            `json:"routing_key"`

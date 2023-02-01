@@ -5,6 +5,7 @@ import (
 	"aurora/internal/common"
 	"aurora/internal/config"
 	"aurora/internal/faas/iface"
+	"aurora/internal/log"
 	"aurora/internal/request"
 	"aurora/internal/utils"
 	"bytes"
@@ -118,23 +119,11 @@ func (of *OpenFaas) Write(id, name, lang string, content, dependencies []byte) e
 	if ret.Message != "" {
 		return errors.New(ret.Message)
 	}
-	d, err := json.Marshal(ret.Data)
-	if err != nil {
-		return err
-	}
-	details := struct {
-		Content      []byte `json:"content"`
-		Dependencies []byte `json:"dependencies"`
-	}{}
-	err = json.Unmarshal(d, &details)
-	if err != nil {
-		return err
-	}
 	// 更新数据库
 	req := &request.OFDBRequest{
 		UUID:         id,
-		Content:      details.Content,
-		Dependencies: details.Dependencies,
+		Content:      content,
+		Dependencies: dependencies,
 		Status:       "WRITTEN",
 		Timestamp:    time.Now().Unix(),
 	}
@@ -219,19 +208,17 @@ func (of *OpenFaas) Delete(id, name string, opts ...*iface.DelOptions) error {
 	if err != nil {
 		return err
 	}
-	if strings.Contains(details.Output, "Removing") {
-		// 更新数据库
-		req := &request.OFDBRequest{
-			UUID:      id,
-			Status:    "Deleted",
-			Timestamp: time.Now().Unix(),
-		}
-		err = of.backend.UpdateFaasInfo(req)
-		if err != nil {
-			return err
-		}
-		return nil
+	// 更新数据库
+	req := &request.OFDBRequest{
+		UUID:      id,
+		Status:    "DELETED",
+		Timestamp: time.Now().Unix(),
 	}
+	err = of.backend.UpdateFaasInfo(req)
+	if err != nil {
+		return err
+	}
+	return nil
 	return fmt.Errorf("uncommon output: %s", details.Output)
 }
 
@@ -265,7 +252,7 @@ func (of *OpenFaas) describe(name string) (map[string]string, error) {
 }
 
 func (of *OpenFaas) List() ([]*request.OFDBResponse, error) {
-	var rets []*request.OFDBResponse
+	var newRets []*request.OFDBResponse
 	// 查数据库
 	rets, err := of.backend.GetAllFaasInfo()
 	if err != nil {
@@ -273,13 +260,36 @@ func (of *OpenFaas) List() ([]*request.OFDBResponse, error) {
 	}
 	// 数据核查
 	for idx, ret := range rets {
-		if ret.URL == "" {
-			// Up后获取URL
-			params, _ := of.describe(ret.Name)
-			rets[idx].URL = params["URL"]
+		if ret.Status == "DELETED" {
+			continue
 		}
+		// 非UP需要重新部署，生产新的URL
+		if ret.Status != "UP" {
+			ret.URL = ""
+		}
+		// 修复URL缺失
+		if ret.URL == "" && ret.Status == "UP" {
+			// Up后获取URL
+			params, err := of.describe(ret.Name)
+			if err != nil {
+				log.Runtime().Infof("Can`t obtain describe for %s, err: %v", ret.Name, err)
+				continue
+			}
+			rets[idx].URL = params["URL"]
+			// 更新数据库
+			req := &request.OFDBRequest{
+				UUID:      ret.UUID,
+				URL:       params["URL"],
+				Timestamp: time.Now().Unix(),
+			}
+			err = of.backend.UpdateFaasInfo(req)
+			if err != nil {
+				continue
+			}
+		}
+		newRets = append(newRets, ret)
 	}
-	return rets, nil
+	return newRets, nil
 }
 
 func (of *OpenFaas) SupportedLang() ([]string, error) {

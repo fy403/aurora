@@ -159,8 +159,15 @@ func (api *Api) Run() (err error) {
 var (
 	// 需要验证token的路由
 	routeNeedToken = map[string]struct{}{
-		"/api/task/send":  {},
-		"/api/task/touch": {},
+		"/api/task/send":   {},
+		"/api/task/touch":  {},
+		"/api/worker/list": {},
+		"/api/faas/list":   {},
+		"/api/faas/langs":  {},
+		"/api/faas/create": {},
+		"/api/faas/write":  {},
+		"/api/faas/up":     {},
+		"/api/faas/delete": {},
 	}
 )
 

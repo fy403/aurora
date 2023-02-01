@@ -2,4 +2,4 @@ package faas
 
 import "aurora/internal/faas/iface"
 
-var ExtantFaasMap map[string]iface.Faas
+var ExtantFaasMap = make(map[string]iface.Faas)
