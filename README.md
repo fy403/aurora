@@ -30,14 +30,14 @@ This README is just a fast quick start document. You can find more detailed docu
 ### 架构模式
 ![总体架构](images/framework.png)
 任务队列由以下模块组成：
-1. Web：负责请求的准入，校验，授权；[前端项目](https://github.com/fy403/aurora_frontend)
+1. Gateway：负责请求的准入，校验，授权；[前端项目](https://github.com/fy403/aurora_frontend)
 2. 代理Broker：负责消息的存储，传递；
 3. 后台Backend：负责持久化存储整个系统的元数据和任务；
-4. Worker：负责存储和调用函数句柄处理任务。
+4. Center: 实现worker和gateway所公共的功能，例如连接broker，mongodb
+5. Worker：负责存储和调用函数句柄处理任务。
 ### 关键词
 * `Worker`：负责实现任务消费，处理任务，并更新状态到数据库；
 * `Handler`：具体的任务处理模型，在model目录中定义；
-* `Web`：所有请求的API接口在此处定义，实际上web目录放前端，api目录放web实例。
 ### 核心部分
 **图任务**
 ![任务模型](./images/workflow.png)
@@ -69,7 +69,7 @@ aurora worker --config=./config/config.toml
 ├───draw   # 架构指南
 ├───images
 └───internal        # 内部所有代码
-    ├───api         # web的api接口定义
+    ├───api         # Gateway的api接口定义
     ├───app         # 暂未使用
     ├───auth        # 授权模块
     ├───backends    # 后端数据存储

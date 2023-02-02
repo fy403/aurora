@@ -172,8 +172,16 @@ func (worker *Worker) Init() (err error) {
 
 	// Register example tasks
 	err = worker.server.RegisterTasks(model.ExtantTaskMap)
+
 	if err != nil {
 		log.Runtime().Fatalf("RegisterTasks process error:", err)
+		return
+	}
+
+	// Register faas instance
+	err = worker.server.RegisterFaas(worker.cfg.Faas)
+	if err != nil {
+		log.Runtime().Fatalf("RegisterFaas process error:", err)
 		return
 	}
 

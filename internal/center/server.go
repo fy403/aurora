@@ -13,6 +13,10 @@ import (
 
 	"aurora/internal/backends/result"
 	"aurora/internal/config"
+	"aurora/internal/faas"
+	"aurora/internal/faas/aliyunfc"
+	"aurora/internal/faas/iface"
+	"aurora/internal/faas/openfaas"
 	"aurora/internal/log"
 	"aurora/internal/opentracing/tracing"
 	"aurora/internal/request"
@@ -117,6 +121,29 @@ func (server *Server) RegisterTasks(namedTaskFuncs map[string]*request.Handler) 
 		handler.Name = name
 	}
 	server.broker.SetRegisteredTaskNames(server.GetRegisteredTaskNames())
+	return nil
+}
+
+func (server *Server) RegisterFaas(faasCfg []*config.Faas) error {
+	// Initialize Faas instance
+	var fs iface.Faas
+	var err error
+	for _, fsCfg := range faasCfg {
+		switch fsCfg.Driver {
+		case "aliyunfc":
+			fs, err = aliyunfc.New(fsCfg)
+		case "openfaas":
+			fs, err = openfaas.New(fsCfg)
+		default:
+			log.Runtime().Fatalf("Unknown faas instance: %s", fsCfg.Driver)
+			return fmt.Errorf("Unknown faas instance: %s", fsCfg.Driver)
+		}
+		if err != nil {
+			log.Runtime().Fatalf("Can`t create the faas instance: %s, err: %v", fsCfg.Driver, err)
+			return err
+		}
+		faas.ExtantFaasMap[fsCfg.Driver] = fs
+	}
 	return nil
 }
 

@@ -23,9 +23,13 @@ type AppConfig struct {
 type Faas struct {
 	Driver   string
 	Endpoint string
+	// aliyunfc
+	ServiceName     string
+	AccessKeyId     string
+	AccessKeySecret string
+	// openfaas
 	Name     string
 	Password string
-	Prefix   string
 }
 
 type Files struct {

@@ -76,27 +76,12 @@ type RabbitMQApi struct {
 	Consumers int    `json:"consumers"`
 	State     string `json:"state"`
 }
-type OFDBRequest struct {
-	UUID         string `json:"uuid"`
-	Driver       string `json:"driver"`
-	Name         string `json:"name"`
-	Lang         string `json:"lang"`
-	URL          string `json:"url"`
-	Content      []byte `json:"content"`
-	Dependencies []byte `json:"dependencies"`
-	Status       string `json:"status"`
-	Timestamp    int64  `json:"timestamp"`
-}
 
-type OFDBResponse struct {
-	UUID         string `json:"uuid"`
+type FaasResponse struct {
+	FunctionID   string `json:"function_id"`
 	Driver       string `json:"driver"`
-	Name         string `json:"name"`
-	Lang         string `json:"lang"`
-	URL          string `json:"url"`
-	Content      []byte `json:"content"`
-	Dependencies []byte `json:"dependencies"`
-	Status       string `json:"status"`
+	FunctionName string `json:"function_name"`
+	Description  string `json:"description"`
 	Timestamp    int64  `json:"timestamp"`
 }
 
