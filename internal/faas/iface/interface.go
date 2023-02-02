@@ -8,5 +8,5 @@ import (
 type Faas interface {
 	GetConfig() *config.Faas
 	List() ([]*request.FaasResponse, error)
-	Invoke(string) (string, error)
+	Invoke(string, string) (string, error)
 }

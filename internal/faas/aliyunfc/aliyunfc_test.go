@@ -4,6 +4,7 @@ import (
 	"aurora/internal/config"
 	"aurora/internal/faas/aliyunfc"
 	"aurora/internal/faas/iface"
+	"encoding/base64"
 	"errors"
 	"os"
 	"testing"
@@ -52,9 +53,10 @@ func TestInvoke(t *testing.T) {
 	if assert.NoError(t, err) {
 		assert.NotNil(t, fc)
 	}
-	resp, err := fc.Invoke("py3")
+	resp, err := fc.Invoke("py3", "")
 	if assert.NoError(t, err) {
 		assert.NotNil(t, resp)
 	}
-	t.Logf("%#v", resp)
+	data, _ := base64.StdEncoding.DecodeString(resp)
+	t.Logf("%#v", string(data))
 }

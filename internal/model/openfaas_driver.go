@@ -1,7 +1,9 @@
 package model
 
 import (
+	"aurora/internal/faas"
 	"aurora/internal/request"
+	"errors"
 )
 
 func init() {
@@ -12,17 +14,11 @@ func init() {
 }
 
 func OpenfaasDriver(functionName string, args string) (string, error) {
-	// resp, err := http.Post(url, "application/json; charset=utf-8", strings.NewReader(args))
-	// if err != nil {
-	// 	return "", err
-	// }
-	// if resp.Body != nil {
-	// 	defer resp.Body.Close()
-	// }
-	// body, err := ioutil.ReadAll(resp.Body)
-	// if err != nil {
-	// 	return "", err
-	// }
-	// return string(body), nil
-	return "", nil
+	driver := "openfaas"
+	// 调用函数。
+	afc, ok := faas.ExtantFaasMap[driver]
+	if !ok {
+		return "", errors.New("Not found faas instance: " + driver)
+	}
+	return afc.Invoke(functionName, args)
 }

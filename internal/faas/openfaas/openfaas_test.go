@@ -4,14 +4,18 @@ import (
 	"aurora/internal/config"
 	"aurora/internal/faas/iface"
 	"aurora/internal/faas/openfaas"
+	"encoding/base64"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func newOpenFaas() (iface.Faas, error) {
 	faasCnf := &config.Faas{
 		Driver:   "openfaas",
-		Endpoint: "http://localhost:18080",
+		Endpoint: "http://localhost:8080",
 		Name:     "admin",
-		Password: "123456",
+		Password: "9DTyNVs0ABQYT4jQ9yEuDtcVzD4gQXfkh4XdssGQ5tFx2UHucXMrqthvuoU3XV2",
 	}
 	fs, err := openfaas.New(faasCnf)
 	if err != nil {
@@ -20,15 +24,27 @@ func newOpenFaas() (iface.Faas, error) {
 	return fs, nil
 }
 
-// func TestNew(t *testing.T) {
-// 	if os.Getenv("MONGODB_URL") == "" {
-// 		t.Skip("MONGODB_URL is not defined")
-// 	}
+func TestList(t *testing.T) {
+	fc, err := newOpenFaas()
+	if assert.NoError(t, err) {
+		assert.NotNil(t, fc)
+	}
+	resp, err := fc.List()
+	if assert.NoError(t, err) {
+		assert.NotNil(t, resp)
+	}
+	t.Log(len(resp))
+}
 
-// 	fs, err := newOpenFaas()
-// 	if assert.NoError(t, err) {
-// 		assert.NotNil(t, fs)
-// 	}
-// 	err = fs.New(name, "golang-http", fs.GetConfig().Prefix)
-// 	assert.NoError(t, err)
-// }
+func TestInvoke(t *testing.T) {
+	fc, err := newOpenFaas()
+	if assert.NoError(t, err) {
+		assert.NotNil(t, fc)
+	}
+	resp, err := fc.Invoke("node-demo", "")
+	if assert.NoError(t, err) {
+		assert.NotNil(t, resp)
+	}
+	data, _ := base64.StdEncoding.DecodeString(resp)
+	t.Logf("%#v", string(data))
+}

@@ -16,13 +16,6 @@ type AliyunFC struct {
 	client *fc.Client
 }
 
-// 应答结构
-type Result struct {
-	Code    int         `json:"code"`
-	Message string      `json:"message"`
-	Data    interface{} `json:"data"`
-}
-
 func New(cnf *config.Faas) (iface.Faas, error) {
 	apiVersion := "2016-08-15"
 	client, err := fc.NewClient(cnf.Endpoint, apiVersion, cnf.AccessKeyId, cnf.AccessKeySecret)
@@ -55,8 +48,9 @@ func (afc *AliyunFC) List() ([]*request.FaasResponse, error) {
 	return resps, nil
 }
 
-func (afc *AliyunFC) Invoke(functionName string) (string, error) {
+func (afc *AliyunFC) Invoke(functionName string, args string) (string, error) {
 	invokeInput := fc.NewInvokeFunctionInput(afc.GetConfig().ServiceName, functionName).WithLogType("None")
+	invokeInput.WithPayload([]byte(args))
 	invokeOutput, err := afc.client.InvokeFunction(invokeInput)
 	if err != nil {
 		return "", err

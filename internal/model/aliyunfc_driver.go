@@ -20,5 +20,5 @@ func AliyunFCDriver(functionName string, args string) (string, error) {
 	if !ok {
 		return "", errors.New("Not found faas instance: " + driver)
 	}
-	return afc.Invoke(functionName)
+	return afc.Invoke(functionName, args)
 }
