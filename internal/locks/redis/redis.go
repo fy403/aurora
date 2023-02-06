@@ -1,9 +1,9 @@
 package redis
 
 import (
+	"context"
 	"errors"
 	"strconv"
-	"strings"
 	"time"
 
 	"aurora/internal/config"
@@ -21,24 +21,19 @@ type Lock struct {
 	interval time.Duration
 }
 
-func New(cnf *config.Config, addrs []string, db, retries int) Lock {
-	if retries <= 0 {
-		return Lock{}
+func New(cnf *config.Config) Lock {
+	if cnf.Redis.Retries <= 0 {
+		cnf.Redis.Retries = 3
 	}
-	lock := Lock{retries: retries}
-
-	var password string
-
-	parts := strings.Split(addrs[0], "@")
-	if len(parts) >= 2 {
-		password = strings.Join(parts[:len(parts)-1], "@")
-		addrs[0] = parts[len(parts)-1] // addr is the last one without @
+	lock := Lock{
+		retries:  cnf.Redis.Retries,
+		interval: 2 * time.Second,
 	}
 
 	ropt := &redis.UniversalOptions{
-		Addrs:    addrs,
-		DB:       db,
-		Password: password,
+		Addrs:    cnf.Redis.Addr,
+		DB:       cnf.Redis.DB,
+		Password: cnf.Redis.Password,
 	}
 	if cnf.Redis != nil {
 		ropt.MasterName = cnf.Redis.MasterName
@@ -49,11 +44,10 @@ func New(cnf *config.Config, addrs []string, db, retries int) Lock {
 	return lock
 }
 
-func (r Lock) LockWithRetries(key string, unixTsToExpireNs int64) error {
+func (r Lock) LockWithRetries(key string, expiration int64) error {
 	for i := 0; i <= r.retries; i++ {
-		err := r.Lock(key, unixTsToExpireNs)
+		err := r.Lock(key, expiration)
 		if err == nil {
-			//成功拿到锁，返回
 			return nil
 		}
 
@@ -62,16 +56,16 @@ func (r Lock) LockWithRetries(key string, unixTsToExpireNs int64) error {
 	return ErrRedisLockFailed
 }
 
-func (r Lock) Lock(key string, unixTsToExpireNs int64) error {
-	now := time.Now().UnixNano()
-	expiration := time.Duration(unixTsToExpireNs + 1 - now)
+func (r Lock) Lock(key string, expiration64 int64) error {
+	expiration := time.Duration(expiration64)
 	ctx := r.rclient.Context()
+	unixTsToExpireNs := time.Now().Add(expiration).UnixNano()
 
-	success, err := r.rclient.SetNX(ctx, key, unixTsToExpireNs, expiration).Result()
+	success, err := r.rclient.SetNX(ctx, key, unixTsToExpireNs, expiration+1).Result()
 	if err != nil {
 		return err
 	}
-
+	// Has locked
 	if !success {
 		v, err := r.rclient.Get(ctx, key).Result()
 		if err != nil {
@@ -81,14 +75,17 @@ func (r Lock) Lock(key string, unixTsToExpireNs int64) error {
 		if err != nil {
 			return err
 		}
-
+		now := time.Now().UnixNano()
+		// lock has expired
 		if timeout != 0 && now > int64(timeout) {
-			newTimeout, err := r.rclient.GetSet(ctx, key, unixTsToExpireNs).Result()
+			// oldTimeout is old value of key
+			unixTsToExpireNs = time.Now().Add(expiration).UnixNano()
+			oldTimeout, err := r.rclient.GetSet(ctx, key, unixTsToExpireNs).Result()
 			if err != nil {
 				return err
 			}
 
-			curTimeout, err := strconv.Atoi(newTimeout)
+			curTimeout, err := strconv.Atoi(oldTimeout)
 			if err != nil {
 				return err
 			}
@@ -99,12 +96,22 @@ func (r Lock) Lock(key string, unixTsToExpireNs int64) error {
 				r.rclient.Expire(ctx, key, expiration)
 				return nil
 			}
-
+			// Others acquire lock with get set faster
 			return ErrRedisLockFailed
 		}
 
 		return ErrRedisLockFailed
 	}
 
+	return nil
+}
+
+func (r Lock) UnLock(key string) error {
+	ctx := context.Background()
+	unixTsToExpireNs := time.Now().UnixNano() - 1
+	_, err := r.rclient.GetSet(ctx, key, unixTsToExpireNs).Result()
+	if err != nil {
+		return err
+	}
 	return nil
 }

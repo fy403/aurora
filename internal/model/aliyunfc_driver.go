@@ -1,6 +1,7 @@
 package model
 
 import (
+	"aurora/internal/constant"
 	"aurora/internal/faas"
 	"aurora/internal/request"
 	"errors"
@@ -14,7 +15,7 @@ func init() {
 }
 
 func AliyunFCDriver(functionName string, args string) (string, error) {
-	driver := "aliyunfc"
+	driver := constant.ALIYUNFC
 	// 调用函数。
 	afc, ok := faas.ExtantFaasMap[driver]
 	if !ok {

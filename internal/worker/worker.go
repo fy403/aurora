@@ -4,6 +4,7 @@ import (
 	backendsiface "aurora/internal/backends/iface"
 	"aurora/internal/brokers/errs"
 	brokersiface "aurora/internal/brokers/iface"
+	cachesiface "aurora/internal/cache/iface"
 	"aurora/internal/center"
 	"aurora/internal/config"
 	lockiface "aurora/internal/locks/iface"
@@ -11,6 +12,7 @@ import (
 	"aurora/internal/opentracing/tracing"
 	"aurora/internal/retry"
 	"aurora/internal/tasks"
+	"aurora/internal/utils"
 	"context"
 	"errors"
 	"fmt"
@@ -50,8 +52,10 @@ func (worker *Worker) NewWorker(
 	cnf *config.Config, consumerTag string, concurrency int,
 	brokerServer brokersiface.Broker,
 	backendServer backendsiface.Backend,
-	lock lockiface.Lock) *Worker {
-	srv := center.NewServer(cnf, brokerServer, backendServer, lock, true)
+	cache cachesiface.Cache,
+	lock lockiface.Lock,
+) *Worker {
+	srv := center.NewServer(cnf, brokerServer, backendServer, cache, lock, true)
 	return &Worker{
 		server:      srv,
 		ConsumerTag: consumerTag,
@@ -65,8 +69,9 @@ func (worker *Worker) NewCustomQueueWorker(
 	cnf *config.Config, consumerTag string, concurrency int,
 	brokerServer brokersiface.Broker,
 	backendServer backendsiface.Backend,
+	cache cachesiface.Cache,
 	lock lockiface.Lock, queue string) *Worker {
-	srv := center.NewServer(cnf, brokerServer, backendServer, lock, true)
+	srv := center.NewServer(cnf, brokerServer, backendServer, cache, lock, true)
 	return &Worker{
 		server:      srv,
 		ConsumerTag: consumerTag,
@@ -314,6 +319,19 @@ func (worker *Worker) taskSucceeded(signature *tasks.Signature, taskResults []*t
 
 	// Trigger graph next sequences
 	if signature.GraphUUID != "" {
+		expiration := 4 * time.Second
+		err = worker.server.GetLock().LockWithRetries(utils.GetLockName(signature.GraphUUID, ""), int64(expiration))
+		if err != nil {
+			return nil
+		}
+		lockedTime := time.Now().UnixNano()
+		defer func() {
+			unLockedTime := time.Now().UnixNano()
+			// 当前客户但持有锁
+			if unLockedTime-lockedTime <= int64(expiration) {
+				worker.server.GetLock().UnLock(utils.GetLockName(signature.GraphUUID, ""))
+			}
+		}()
 		isFinished, err := worker.server.GetBackend().GraphCompleted(signature.GraphUUID, signature.GraphTaskCount)
 		if err != nil {
 			return fmt.Errorf("Get complemented state for graph %s returned error: %s", signature.GraphUUID, err)
@@ -370,7 +388,19 @@ func (worker *Worker) taskSucceeded(signature *tasks.Signature, taskResults []*t
 	if signature.ChordCallback == nil {
 		return nil
 	}
-
+	expiration := 4 * time.Second
+	err = worker.server.GetLock().LockWithRetries(utils.GetLockName(signature.GroupUUID, signature.ChordCallback.UUID), int64(expiration))
+	if err != nil {
+		return nil
+	}
+	lockedTime := time.Now().UnixNano()
+	defer func() {
+		unLockedTime := time.Now().UnixNano()
+		// 当前客户但持有锁
+		if unLockedTime-lockedTime <= int64(expiration) {
+			worker.server.GetLock().UnLock(utils.GetLockName(signature.GroupUUID, signature.ChordCallback.UUID))
+		}
+	}()
 	// Check if all task in the group has completed
 	groupCompleted, err := worker.server.GetBackend().GroupCompleted(
 		signature.GroupUUID,
@@ -485,27 +515,26 @@ func (worker *Worker) SetErrorHandler(handler func(err error)) {
 	worker.errorHandler = handler
 }
 
-//SetPreTaskHandler sets a custom handler func before a job is started
+// SetPreTaskHandler sets a custom handler func before a job is started
 func (worker *Worker) SetPreTaskHandler(handler func(*tasks.Signature)) {
 	worker.preTaskHandler = handler
 }
 
-//SetPostTaskHandler sets a custom handler for the end of a job
+// SetPostTaskHandler sets a custom handler for the end of a job
 func (worker *Worker) SetPostTaskHandler(handler func(*tasks.Signature)) {
 	worker.postTaskHandler = handler
 }
 
-//SetPreConsumeHandler sets a custom handler for the end of a job
+// SetPreConsumeHandler sets a custom handler for the end of a job
 func (worker *Worker) SetPreConsumeHandler(handler func(*Worker) bool) {
 	worker.preConsumeHandler = handler
 }
 
-//GetServer returns server
+// GetServer returns server
 func (worker *Worker) GetServer() *center.Server {
 	return worker.server
 }
 
-//
 func (worker *Worker) PreConsumeHandler() bool {
 	if worker.preConsumeHandler == nil {
 		return true

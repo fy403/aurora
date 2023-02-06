@@ -14,9 +14,8 @@ type AppConfig struct {
 	Opentracing *Opentracing
 	HTTP        *HTTP
 	Auth        *Auth
-	Center      *Config
+	Gateway     *Config
 	Worker      *Config
-	Web         *Web
 	Faas        []*Faas
 }
 
@@ -45,12 +44,12 @@ type HTTP struct {
 	Port string
 }
 type Auth struct {
-	New_authentication_key string
-	New_encryption_key     string
-	Old_authentication_key string
-	Old_encryption_key     string
-	DefaultSessionOption   *sessions.Options
-	Users                  map[string]string
+	NewAuthenticationKey string
+	NewEncryptionKey     string
+	OldAuthenticationKey string
+	OldEncryptionKey     string
+	DefaultSessionOption *sessions.Options
+	Users                map[string]string
 }
 type Web struct {
 	StaticFS bool

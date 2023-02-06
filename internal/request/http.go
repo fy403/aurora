@@ -56,12 +56,12 @@ type WorkerResponse struct {
 }
 
 type WorkerMeta struct {
-	UUID      string            `bson:"_id"`
-	SpecQueue string            `bson:"spec_queue"`
-	Metrics   map[string]string `bson:"metrics"`
-	Handlers  []*Handler        `bson:"handlers"`
-	Labels    map[string]string `bson:"labels"`
-	CreatedAt int64             `bson:"created_at"`
+	UUID      string            `bson:"_id" json:"_id"`
+	SpecQueue string            `bson:"spec_queue" json:"spec_queue"`
+	Metrics   map[string]string `bson:"metrics" json:"metrics"`
+	Handlers  []*Handler        `bson:"handlers" json:"handlers"`
+	Labels    map[string]string `bson:"labels" json:"labels"`
+	CreatedAt int64             `bson:"created_at" json:"created_at"`
 }
 
 type Handler struct {
@@ -69,7 +69,7 @@ type Handler struct {
 	Usage   string      `json:"usage" bson:"usage"`
 	InArgs  []tasks.Arg `json:"in_args" bson:"in_args"`
 	OutArgs []tasks.Arg `json:"out_args" bson:"out_args"`
-	Fn      interface{} `json:"fn" bson:"-"`
+	Fn      interface{} `json:"-" bson:"-"`
 }
 
 type RabbitMQApi struct {

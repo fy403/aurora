@@ -2,14 +2,11 @@ package mongo_test
 
 import (
 	"os"
-	"strconv"
 	"testing"
-	"time"
 
 	"aurora/internal/backends/iface"
 	"aurora/internal/backends/mongo"
 	"aurora/internal/config"
-	"aurora/internal/request"
 	"aurora/internal/tasks"
 
 	"github.com/stretchr/testify/assert"
@@ -250,53 +247,53 @@ func TestGroupStates(t *testing.T) {
 	}
 }
 
-func TestWorkerInfo(t *testing.T) {
-	if os.Getenv("MONGODB_URL") == "" {
-		t.Skip("MONGODB_URL is not defined")
-	}
+// func TestWorkerInfo(t *testing.T) {
+// 	if os.Getenv("MONGODB_URL") == "" {
+// 		t.Skip("MONGODB_URL is not defined")
+// 	}
 
-	cnf := &config.Config{
-		ResultBackend:   os.Getenv("MONGODB_URL"),
-		ResultsExpireIn: 30,
-	}
-	backend, err := mongo.New(cnf)
-	if err != nil {
-		t.Fatal(err)
-	}
-	// Insert
-	for i := int64(0); i < 10; i++ {
-		req := request.WorkerRequest{
-			UUID: strconv.FormatInt(i, 10),
-			Labels: map[string]string{
-				"k1": "v1",
-				"k2": "v2",
-			},
-			Timestamp: time.Now().Unix(),
-		}
-		err = backend.SetWorkerInfo(&req)
-		assert.NoError(t, err)
-	}
-	// Get
-	results, err := backend.GetAllWorkersInfo()
-	assert.NotEmpty(t, results)
+// 	cnf := &config.Config{
+// 		ResultBackend:   os.Getenv("MONGODB_URL"),
+// 		ResultsExpireIn: 30,
+// 	}
+// 	backend, err := mongo.New(cnf)
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
+// 	// Insert
+// 	for i := int64(0); i < 10; i++ {
+// 		req := request.WorkerRequest{
+// 			UUID: strconv.FormatInt(i, 10),
+// 			Labels: map[string]string{
+// 				"k1": "v1",
+// 				"k2": "v2",
+// 			},
+// 			Timestamp: time.Now().Unix(),
+// 		}
+// 		err = backend.SetWorkerInfo(&req)
+// 		assert.NoError(t, err)
+// 	}
+// 	// Get
+// 	results, err := backend.GetAllWorkersInfo()
+// 	assert.NotEmpty(t, results)
 
-	// Update
-	req := request.WorkerRequest{
-		UUID: "0",
-		Labels: map[string]string{
-			"k1": "v1",
-			"k2": "v2",
-			"k3": "v3",
-		},
-		Timestamp: time.Now().Unix(),
-	}
-	err = backend.UpdateWorkerInfo(&req)
-	assert.NoError(t, err)
+// 	// Update
+// 	req := request.WorkerRequest{
+// 		UUID: "0",
+// 		Labels: map[string]string{
+// 			"k1": "v1",
+// 			"k2": "v2",
+// 			"k3": "v3",
+// 		},
+// 		Timestamp: time.Now().Unix(),
+// 	}
+// 	err = backend.UpdateWorkerInfo(&req)
+// 	assert.NoError(t, err)
 
-	// Purge
-	req = request.WorkerRequest{
-		UUID: "9",
-	}
-	err = backend.PurgeWorkerInfo(&req)
-	assert.NoError(t, err)
-}
+// 	// Purge
+// 	req = request.WorkerRequest{
+// 		UUID: "9",
+// 	}
+// 	err = backend.PurgeWorkerInfo(&req)
+// 	assert.NoError(t, err)
+// }

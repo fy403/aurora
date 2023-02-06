@@ -31,39 +31,6 @@ func New(cnf *config.Config) (iface.Repo, error) {
 	}, nil
 }
 
-// func (r *Repo) findFile(fileName string) (fileID primitive.ObjectID, err error) {
-// 	bucket := r.getGridFSBucket("")
-// 	filter := bson.D{
-// 		{"filename", fileName},
-// 	}
-// 	cursor, err := bucket.Find(filter)
-// 	if err != nil {
-// 		log.Runtime().Error(err.Error())
-// 	}
-// 	defer func() {
-// 		if err := cursor.Close(context.TODO()); err != nil {
-// 			log.Runtime().Error(err.Error())
-// 		}
-// 	}()
-
-// 	type gridfsFile struct {
-// 		ID        string `bson:"_id"`
-// 		ChunkSize int64  `bson:"chunkSize"`
-// 		Name      string `bson:"filename"`
-// 		Length    int64  `bson:"length"`
-// 	}
-// 	var foundFiles []gridfsFile
-// 	if err = cursor.All(context.TODO(), &foundFiles); err != nil {
-// 		log.Runtime().Error(err.Error())
-// 	}
-// 	if len(foundFiles) > 0 {
-// 		fileID, err = primitive.ObjectIDFromHex(foundFiles[0].ID)
-// 		return
-// 	}
-// 	err = fmt.Errorf("fileName %s not found", fileName)
-// 	return
-// }
-
 func (r *Repo) UploadFile(fileName string, fileContent []byte) (primitive.ObjectID, error) {
 	bucket := r.getGridFSBucket("")
 	fileID, err := bucket.UploadFromStream(fileName, bytes.NewBuffer(fileContent))

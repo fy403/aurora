@@ -23,7 +23,7 @@ This README is just a fast quick start document. You can find more detailed docu
 - [x] 系统解耦
 - [x] 独立配置
 - [x] 前端管理
-- [x] 动态句柄
+- [x] 函数计算
 - [ ] 监控支持
    
 [体验地址]()
@@ -79,6 +79,7 @@ aurora worker --config=./config/config.toml
     ├───config      # 配置实例定义
     ├───locks       # 分布式锁
     ├───model       # 所有句柄模型
+    ├───faas        # faas函数计算驱动模块
     ├───opentracing # 链路追踪
     ├───request     # 请求实例定义
     ├───retry       # 重试模块

@@ -2,6 +2,7 @@ package openfaas_test
 
 import (
 	"aurora/internal/config"
+	"aurora/internal/constant"
 	"aurora/internal/faas/iface"
 	"aurora/internal/faas/openfaas"
 	"encoding/base64"
@@ -12,7 +13,7 @@ import (
 
 func newOpenFaas() (iface.Faas, error) {
 	faasCnf := &config.Faas{
-		Driver:   "openfaas",
+		Driver:   constant.OPENFASS,
 		Endpoint: "http://localhost:8080",
 		Name:     "admin",
 		Password: "9DTyNVs0ABQYT4jQ9yEuDtcVzD4gQXfkh4XdssGQ5tFx2UHucXMrqthvuoU3XV2",

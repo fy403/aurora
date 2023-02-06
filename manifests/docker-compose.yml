@@ -1,0 +1,95 @@
+version: "1.0"
+services:
+  web:
+    image: fy403/aurora
+    volumes:
+      - type: bind
+        source: /data/logs/aurora
+        target: /data/logs/aurora
+    command:
+      - "aurora"
+      - "web"
+      - "--config"
+      - "./config/config.toml"
+    ports:
+      - "4332:4332"
+    depends_on:
+      - broker
+      - mongodb
+      - redis
+  worker:
+    image: fy403/aurora
+    volumes:
+      - type: bind
+        source: /data/logs/aurora
+        target: /data/logs/aurora
+    command:
+      - "aurora"
+      - "worker"
+      - "--config"
+      - "./config/config.toml"
+    ports:
+      - "8080:8080"
+    depends_on:
+      - broker
+      - mongodb
+      - redis
+  redis:
+    image: redis
+    volumes:
+    - type: bind
+      source: /data/config/redis
+      target: /usr/local/etc/redis
+    - type: bind
+      source: /data/db/redis
+      target: /data
+    command:
+      - "redis-server"
+      - "--appendonly"
+      - "yes"
+      - "--requirepass"
+      - "123456"
+    ports:
+      - "6379:6379"
+  broker:
+    image: rabbitmq:3-management
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+    volumes:
+      - type: bind
+        source: /data/db/rabbitmq
+        target: /var/lib/rabbitmq/mnesia/rabbit@my-rabbit
+      - type: bind
+        source: /data/config/rabbitmq
+        target: /etc/rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+  mongodb:
+    image: mongo
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=admin
+    volumes:
+      - type: bind
+        source: /data/db/mongodb
+        target: /data/db
+      - type: bind
+        source: /data/config/mongodb
+        target: /etc/mongo
+    ports:
+      - "27017:27017"
+  opentracing:
+    image: jaegertracing/all-in-one:latest
+    environment:
+      - COLLECTOR_ZIPKIN_HTTP_PORT=9411
+    ports:
+      - "14268:14268"
+      - "16686:16686"
+      # - "5775:5775/udp"
+      # - "831:6831/udp"
+      # - "6832:6832/udp"
+      # - "5778:5778"
+      # - "14269:14269"
+      # - "9411:9411 "

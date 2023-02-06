@@ -6,13 +6,13 @@ import (
 	"fmt"
 	"reflect"
 	"sync"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/robfig/cron/v3"
 
 	"aurora/internal/backends/result"
 	"aurora/internal/config"
+	"aurora/internal/constant"
 	"aurora/internal/faas"
 	"aurora/internal/faas/aliyunfc"
 	"aurora/internal/faas/iface"
@@ -21,10 +21,11 @@ import (
 	"aurora/internal/opentracing/tracing"
 	"aurora/internal/request"
 	"aurora/internal/tasks"
-	"aurora/internal/utils"
 	algorithm "aurora/internal/utils/algorithm"
 
 	backendsiface "aurora/internal/backends/iface"
+	cachesiface "aurora/internal/cache/iface"
+
 	brokersiface "aurora/internal/brokers/iface"
 	lockiface "aurora/internal/locks/iface"
 
@@ -38,18 +39,20 @@ type Server struct {
 	registeredTasks   *sync.Map
 	broker            brokersiface.Broker
 	backend           backendsiface.Backend
+	cache             cachesiface.Cache
 	lock              lockiface.Lock
 	scheduler         *cron.Cron
 	prePublishHandler func(*tasks.Signature)
 }
 
 // NewServer creates Server instance
-func NewServer(cnf *config.Config, brokerServer brokersiface.Broker, backendServer backendsiface.Backend, lock lockiface.Lock, onlyCnf ...bool) *Server {
+func NewServer(cnf *config.Config, brokerServer brokersiface.Broker, backendServer backendsiface.Backend, cacheServer cachesiface.Cache, lock lockiface.Lock, onlyCnf ...bool) *Server {
 	srv := &Server{
 		config:          cnf,
 		registeredTasks: new(sync.Map),
 		broker:          brokerServer,
 		backend:         backendServer,
+		cache:           cacheServer,
 		lock:            lock,
 		scheduler:       cron.New(),
 	}
@@ -75,6 +78,15 @@ func (server *Server) SetBroker(broker brokersiface.Broker) {
 // GetBackend returns backend
 func (server *Server) GetBackend() backendsiface.Backend {
 	return server.backend
+}
+
+func (server *Server) GetCache() cachesiface.Cache {
+	return server.cache
+}
+
+// GetLock returns lock
+func (server *Server) GetLock() lockiface.Lock {
+	return server.lock
 }
 
 // SetBackend sets backend
@@ -130,9 +142,9 @@ func (server *Server) RegisterFaas(faasCfg []*config.Faas) error {
 	var err error
 	for _, fsCfg := range faasCfg {
 		switch fsCfg.Driver {
-		case "aliyunfc":
+		case constant.ALIYUNFC:
 			fs, err = aliyunfc.New(fsCfg)
-		case "openfaas":
+		case constant.OPENFASS:
 			fs, err = openfaas.New(fsCfg)
 		default:
 			log.Runtime().Fatalf("Unknown faas instance: %s", fsCfg.Driver)
@@ -429,120 +441,6 @@ func (server *Server) GetRegisteredTaskNames() []string {
 		return true
 	})
 	return taskNames
-}
-
-// RegisterPeriodicTask register a periodic task which will be triggered periodically
-func (server *Server) RegisterPeriodicTask(spec, name string, signature *tasks.Signature) error {
-	//check spec
-	schedule, err := cron.ParseStandard(spec)
-	if err != nil {
-		return err
-	}
-
-	f := func() {
-		//get lock
-		err := server.lock.LockWithRetries(utils.GetLockName(name, spec), schedule.Next(time.Now()).UnixNano()-1)
-		if err != nil {
-			return
-		}
-
-		//send task
-		_, err = server.SendTask(tasks.CopySignature(signature))
-		if err != nil {
-			log.Runtime().Errorf("periodic task failed. task name is: %s. error is %s", name, err.Error())
-		}
-	}
-
-	_, err = server.scheduler.AddFunc(spec, f)
-	return err
-}
-
-// RegisterPeriodicChain register a periodic chain which will be triggered periodically
-func (server *Server) RegisterPeriodicChain(spec, name string, signatures ...*tasks.Signature) error {
-	//check spec
-	schedule, err := cron.ParseStandard(spec)
-	if err != nil {
-		return err
-	}
-
-	f := func() {
-		// new chain
-		chain, _ := tasks.NewChain(tasks.CopySignatures(signatures...)...)
-
-		//get lock
-		err := server.lock.LockWithRetries(utils.GetLockName(name, spec), schedule.Next(time.Now()).UnixNano()-1)
-		if err != nil {
-			return
-		}
-
-		//send task
-		_, err = server.SendChain(chain)
-		if err != nil {
-			log.Runtime().Errorf("periodic task failed. task name is: %s. error is %s", name, err.Error())
-		}
-	}
-
-	_, err = server.scheduler.AddFunc(spec, f)
-	return err
-}
-
-// RegisterPeriodicGroup register a periodic group which will be triggered periodically
-func (server *Server) RegisterPeriodicGroup(spec, name string, sendConcurrency int, signatures ...*tasks.Signature) error {
-	//check spec
-	schedule, err := cron.ParseStandard(spec)
-	if err != nil {
-		return err
-	}
-
-	f := func() {
-		// new group
-		group, _ := tasks.NewGroup(tasks.CopySignatures(signatures...)...)
-
-		//get lock
-		err := server.lock.LockWithRetries(utils.GetLockName(name, spec), schedule.Next(time.Now()).UnixNano()-1)
-		if err != nil {
-			return
-		}
-
-		//send task
-		_, err = server.SendGroup(group, sendConcurrency)
-		if err != nil {
-			log.Runtime().Errorf("periodic task failed. task name is: %s. error is %s", name, err.Error())
-		}
-	}
-
-	_, err = server.scheduler.AddFunc(spec, f)
-	return err
-}
-
-// RegisterPeriodicChord register a periodic chord which will be triggered periodically
-func (server *Server) RegisterPeriodicChord(spec, name string, sendConcurrency int, callback *tasks.Signature, signatures ...*tasks.Signature) error {
-	//check spec
-	schedule, err := cron.ParseStandard(spec)
-	if err != nil {
-		return err
-	}
-
-	f := func() {
-		// new chord
-		group, _ := tasks.NewGroup(tasks.CopySignatures(signatures...)...)
-		chord, _ := tasks.NewChord(group, tasks.CopySignature(callback))
-
-		//get lock
-		err := server.lock.LockWithRetries(utils.GetLockName(name, spec), schedule.Next(time.Now()).UnixNano()-1)
-		if err != nil {
-			return
-		}
-
-		//send task
-		_, err = server.SendChord(chord, sendConcurrency)
-		if err != nil {
-			log.Runtime().Errorf("periodic task failed. task name is: %s. error is %s", name, err.Error())
-		}
-	}
-
-	_, err = server.scheduler.AddFunc(spec, f)
-	return err
 }
 
 // SendGraph triggers a graph of tasks

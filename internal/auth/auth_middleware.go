@@ -15,10 +15,10 @@ var users map[string]string
 
 func Init(cfg *config.Auth) error {
 	keyPairs = [][]byte{
-		[]byte(cfg.New_authentication_key),
-		[]byte(cfg.New_encryption_key),
-		[]byte(cfg.Old_authentication_key),
-		[]byte(cfg.Old_encryption_key),
+		[]byte(cfg.NewAuthenticationKey),
+		[]byte(cfg.NewEncryptionKey),
+		[]byte(cfg.OldAuthenticationKey),
+		[]byte(cfg.OldEncryptionKey),
 	}
 	store = sessions.NewCookieStore(
 		keyPairs...,

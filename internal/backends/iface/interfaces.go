@@ -1,7 +1,6 @@
 package iface
 
 import (
-	"aurora/internal/request"
 	"aurora/internal/tasks"
 )
 
@@ -32,12 +31,6 @@ type Backend interface {
 	IsAMQP() bool
 	PurgeState(taskUUID string) error
 	PurgeGroupMeta(groupUUID string) error
-
-	// Setting / getting worker info
-	SetWorkerInfo(req *request.WorkerRequest) error
-	GetAllWorkersInfo() ([]*request.WorkerResponse, error)
-	UpdateWorkerInfo(req *request.WorkerRequest) error
-	PurgeWorkerInfo(req *request.WorkerRequest) error
 
 	TestConnect() error
 }

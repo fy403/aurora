@@ -13,7 +13,13 @@ import (
 	// "github.com/prometheus/client_golang/prometheus/promhttp"
 	mongobackend "aurora/internal/backends/mongo"
 	amqpbroker "aurora/internal/brokers/amqp"
+	eagercache "aurora/internal/cache/eager"
+	cachesiface "aurora/internal/cache/iface"
+	rediscache "aurora/internal/cache/redis"
 	eagerlock "aurora/internal/locks/eager"
+	locksiface "aurora/internal/locks/iface"
+	redislock "aurora/internal/locks/redis"
+	workerutils "aurora/internal/utils/worker"
 
 	"github.com/gin-contrib/static"
 	"github.com/gin-gonic/gin"
@@ -54,8 +60,8 @@ func (api *Api) Init() (err error) {
 		log.Runtime().Errorf("auth init error: %s", err.Error())
 	}
 
-	// Only Load Center Config
-	var cfg = api.cfg.Center
+	// Only Load Gateway Config
+	var cfg = api.cfg.Gateway
 	if cfg == nil {
 		log.Runtime().Fatal("cfg.Center must be set")
 		return
@@ -82,9 +88,23 @@ func (api *Api) Init() (err error) {
 		log.Runtime().Fatalf("Can`t build a connection to backend: %v", err)
 		return
 	}
-
-	lock := eagerlock.New()
-	api.server = center.NewServer(cfg, broker, backend, lock)
+	var lock locksiface.Lock
+	var cache cachesiface.Cache
+	if strings.Contains(cfg.Lock, "redis") {
+		// 分布式锁
+		lock = redislock.New(cfg)
+	} else {
+		// 本地锁
+		lock = eagerlock.New()
+	}
+	if strings.Contains(cfg.Cache, "redis") {
+		// 分布式缓存
+		cache = rediscache.New(cfg)
+	} else {
+		// 本地缓存
+		cache = eagercache.New()
+	}
+	api.server = center.NewServer(cfg, broker, backend, cache, lock)
 
 	// Register faas instance
 	err = api.server.RegisterFaas(api.cfg.Faas)
@@ -126,24 +146,24 @@ func (api *Api) Run() (err error) {
 	})
 
 	// 静态资源浏览
-	if cfg.Web.StaticFS {
-		app.StaticFS("/static", gin.Dir(cfg.Web.FilePath, true))
+	if cfg.Gateway.Web.StaticFS {
+		app.StaticFS("/static", gin.Dir(cfg.Gateway.Web.FilePath, true))
 	}
 
 	// 前端
-	if cfg.Web.WebIndex != "" {
-		app.Use(static.Serve("/", static.LocalFile(cfg.Web.WebIndex, false)))
+	if cfg.Gateway.Web.WebIndex != "" {
+		app.Use(static.Serve("/", static.LocalFile(cfg.Gateway.Web.WebIndex, false)))
 		app.NoRoute(func(ctx *gin.Context) {
-			ctx.File(cfg.Web.WebIndex + "/index.html")
+			ctx.File(cfg.Gateway.Web.WebIndex + "/index.html")
 		})
 	}
 
 	api.initHandler(app)
 
-	port := strings.Split(cfg.Web.WebAddr, ":")[1]
+	port := strings.Split(cfg.Gateway.Web.WebAddr, ":")[1]
 	webAddr := fmt.Sprintf("0.0.0.0:%s", port)
 
-	log.Runtime().Infof("start web service on %s", cfg.Web.WebAddr)
+	log.Runtime().Infof("start web service on %s", cfg.Gateway.Web.WebAddr)
 
 	if err = app.Run(webAddr); err != nil {
 		log.Runtime().Error(err.Error())
@@ -165,21 +185,6 @@ var (
 		"/api/faas/delete": {},
 	}
 )
-
-func (api *Api) checkToken(ctx *gin.Context, route string) bool {
-	if _, ok := routeNeedToken[route]; !ok {
-		return true
-	}
-	if len(ctx.Request.Header["Authorization"]) > 0 {
-		ctx.Request.Header.Add("Cookie", ctx.Request.Header["Authorization"][0])
-	}
-	session, err := auth.DefaultStore().Get(ctx.Request, "aurora_session")
-
-	if session.IsNew || err != nil {
-		return false
-	}
-	return true
-}
 
 func (api *Api) initHandler(app *gin.Engine) {
 	authGroup := app.Group("/auth")
@@ -210,6 +215,21 @@ func (api *Api) initHandler(app *gin.Engine) {
 	faasGroup.GET("/list", api.WarpHandle(faasHandler.ListInstance))
 }
 
+func (api *Api) checkToken(ctx *gin.Context, route string) bool {
+	if _, ok := routeNeedToken[route]; !ok {
+		return true
+	}
+	if len(ctx.Request.Header["Authorization"]) > 0 {
+		ctx.Request.Header.Add("Cookie", ctx.Request.Header["Authorization"][0])
+	}
+	session, err := auth.DefaultStore().Get(ctx.Request, "aurora_session")
+
+	if session.IsNew || err != nil {
+		return false
+	}
+	return true
+}
+
 func (api *Api) initMetrics() (err error) {
 	// if err = metrics.InitMetrics(global.Region(), config.AppTag, api.cfg.Files.Metrics, ""); err != nil {
 	// 	return err
@@ -233,19 +253,19 @@ func (api *Api) initAuth() (err error) {
 
 // Adjust api req selector to every signatures
 func (api *Api) LabelSelector(requestOBJ *request.CenterRequest) (err error) {
-	results, err := api.server.GetBackend().GetAllWorkersInfo()
+	results, err := workerutils.GetAllWorkersInfo(api.server.GetCache())
 	if err != nil {
 		return err
 	}
 	defaultLabelSelecotr := requestOBJ.LabelSelector
 	// Purge invalid worker
 	for idx, result := range results {
-		if isValid := result.IsValid(api.cfg.Center.BrokerApi); !isValid {
+		if isValid := result.IsValid(api.cfg.Gateway.BrokerApi); !isValid {
 			results[idx] = nil
 			req := request.WorkerRequest{
 				UUID: result.UUID,
 			}
-			api.server.GetBackend().PurgeWorkerInfo(&req)
+			workerutils.PurgeWorkerInfo(api.server.GetCache(), &req)
 			continue
 		}
 	}

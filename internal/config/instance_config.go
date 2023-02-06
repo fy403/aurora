@@ -53,9 +53,11 @@ var (
 
 // Config holds all configuration for our program
 type Config struct {
+	Web                     *Web
 	Broker                  string `yaml:"broker" envconfig:"BROKER"`
 	BrokerApi               string `yaml:"broker_api" envconfig:"BROKER_API"`
 	Lock                    string `yaml:"lock" envconfig:"LOCK"`
+	Cache                   string `yaml:"cache" envconfig:"CACHE"`
 	MultipleBrokerSeparator string `yaml:"multiple_broker_separator" envconfig:"MULTIPLE_BROKEN_SEPARATOR"`
 	DefaultQueue            string `yaml:"default_queue" envconfig:"DEFAULT_QUEUE"`
 	ResultBackend           string `yaml:"result_backend" envconfig:"RESULT_BACKEND"`
@@ -112,6 +114,10 @@ type SQSConfig struct {
 
 // RedisConfig ...
 type RedisConfig struct {
+	DB       int      `yaml:"db" envconfig:"REDIS_DB"`
+	Password string   `yaml:"password" envconfig:"REDIS_PASSWORD"`
+	Addr     []string `yaml:"addr" envconfig:"REDIS_ADDR"`
+	Retries  int      `yaml:"retries" envconfig:"REDIS_RETRIES"`
 	// Maximum number of idle connections in the pool.
 	// Default: 10
 	MaxIdle int `yaml:"max_idle" envconfig:"REDIS_MAX_IDLE"`

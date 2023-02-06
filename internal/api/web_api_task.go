@@ -2,6 +2,7 @@ package api
 
 import (
 	"aurora/internal/backends/result"
+	"aurora/internal/constant"
 	"aurora/internal/log"
 	"aurora/internal/request"
 	"aurora/internal/tasks"
@@ -74,7 +75,7 @@ func (*taskHandler) send(wait *WaitConn, req request.CenterRequest) {
 	log.Runtime().Debugf("Received A Send : %s, %s", req.TaskType, req.BatchID)
 
 	switch v := req.TaskType; v {
-	case "task":
+	case constant.TASK:
 		asyncResultPtr, err := defaultApi.server.SendTaskWithContext(ctx, req.Signatures[0])
 		if err != nil {
 			wait.SetResult(fmt.Sprintf("Could not send task: %s", err.Error()), "")
@@ -95,7 +96,7 @@ func (*taskHandler) send(wait *WaitConn, req request.CenterRequest) {
 				asyncResultPtr.Signature,
 			},
 		})
-	case "group":
+	case constant.GROUP:
 		group, err := tasks.NewGroup(req.Signatures...)
 		if err != nil {
 			wait.SetResult(fmt.Sprintf("Error creating group: %s", err.Error()), "")
@@ -125,7 +126,7 @@ func (*taskHandler) send(wait *WaitConn, req request.CenterRequest) {
 				},
 			})
 		}
-	case "graph":
+	case constant.GRAPH:
 		graph, err := tasks.NewGraph(req.Relations, req.Signatures...)
 		if err != nil {
 			wait.SetResult(fmt.Sprintf("Error creating graph: %s", err.Error()), "")
@@ -153,7 +154,7 @@ func (*taskHandler) send(wait *WaitConn, req request.CenterRequest) {
 				},
 			})
 		}
-	case "chord":
+	case constant.CHORD:
 		group, err := tasks.NewGroup(req.Signatures...)
 		if err != nil {
 			wait.SetResult(fmt.Sprintf("Error creating group: %s", err.Error()), "")
@@ -190,7 +191,7 @@ func (*taskHandler) send(wait *WaitConn, req request.CenterRequest) {
 			State:      chordAsyncResult.GetChordAyncResults().GetState().State, // callback的state
 			CallBack:   chordAsyncResult.GetChordAyncResults().Signature,
 		})
-	case "chain":
+	case constant.CHAIN:
 		chain, err := tasks.NewChain(req.Signatures...)
 		if err != nil {
 			wait.SetResult(fmt.Sprintf("Error creating chain: %s", err), "")
@@ -291,7 +292,7 @@ func (*taskHandler) touch(wait *WaitConn, req request.CenterRequest) {
 			State:      asyncResult.GetState().State, // 每个state
 			Signatures: req.Signatures,
 		})
-	case "group", "graph":
+	case constant.GROUP, constant.GRAPH:
 		for _, signature := range req.Signatures {
 			asyncResult := result.NewAsyncResult(signature, defaultApi.server.GetBackend())
 			if !asyncResult.GetState().IsSuccess() {
@@ -310,7 +311,7 @@ func (*taskHandler) touch(wait *WaitConn, req request.CenterRequest) {
 				},
 			})
 		}
-	case "chord":
+	case constant.CHORD:
 		chordAsyncResult := result.NewChordAsyncResult(req.Signatures, req.CallBack, defaultApi.server.GetBackend())
 		for _, asyncResult := range chordAsyncResult.GetGroupAsyncResults() {
 			if !asyncResult.GetState().IsSuccess() {
@@ -338,7 +339,7 @@ func (*taskHandler) touch(wait *WaitConn, req request.CenterRequest) {
 			Signatures: req.Signatures,
 			CallBack:   req.CallBack,
 		})
-	case "chain":
+	case constant.CHAIN:
 		chainAsyncResult := result.NewChainAsyncResult(req.Signatures, defaultApi.server.GetBackend())
 		var results []reflect.Value
 		for _, asyncResult := range chainAsyncResult.GetAsyncResults() {

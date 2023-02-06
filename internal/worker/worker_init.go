@@ -12,15 +12,20 @@ import (
 	// "github.com/prometheus/client_golang/prometheus/promhttp"
 	mongobackend "aurora/internal/backends/mongo"
 	amqpbroker "aurora/internal/brokers/amqp"
+	eagercache "aurora/internal/cache/eager"
+	cachesiface "aurora/internal/cache/iface"
+	rediscache "aurora/internal/cache/redis"
 	"aurora/internal/center"
 	"aurora/internal/config"
 	eagerlock "aurora/internal/locks/eager"
+	locksiface "aurora/internal/locks/iface"
+	redislock "aurora/internal/locks/redis"
+	"aurora/internal/log"
 	"aurora/internal/model"
 	"aurora/internal/opentracing/tracers"
 	"aurora/internal/request"
-
-	"aurora/internal/log"
 	"aurora/internal/tasks"
+	workerutils "aurora/internal/utils/worker"
 
 	"github.com/google/uuid"
 )
@@ -85,22 +90,36 @@ func (worker *Worker) register() (err error) {
 		Timestamp: time.Now().Unix(),
 	}
 
-	results, err := worker.server.GetBackend().GetAllWorkersInfo()
+	results, err := workerutils.GetAllWorkersInfo(worker.server.GetCache())
 	var filterResults []*request.WorkerResponse
 	// Purge invalid worker
 	for idx, result := range results {
-		if isValid := result.IsValid(worker.cfg.Center.BrokerApi); !isValid || result.SpecQueue == queueName {
+		if isValid := result.IsValid(worker.cfg.Worker.BrokerApi); !isValid || result.SpecQueue == queueName {
 			results[idx] = nil
 			req := request.WorkerRequest{
 				UUID: result.UUID,
 			}
-			worker.server.GetBackend().PurgeWorkerInfo(&req)
+			workerutils.PurgeWorkerInfo(worker.server.GetCache(), &req)
 			continue
 		}
 		filterResults = append(filterResults, result)
 	}
 
-	err = worker.server.GetBackend().SetWorkerInfo(&req)
+	go func() {
+		ticker := time.NewTicker(time.Second * 15)
+		defer ticker.Stop()
+		errChan := make(chan error, 10)
+		for {
+			select {
+			case err := <-errChan:
+				if err != nil {
+					log.Runtime().Infof("SetWorkerInfo has occur some err: %v", err)
+				}
+			case <-ticker.C:
+				errChan <- workerutils.SetWorkerInfo(worker.server.GetCache(), &req)
+			}
+		}
+	}()
 	return
 }
 
@@ -166,9 +185,24 @@ func (worker *Worker) Init() (err error) {
 		return
 	}
 
+	var lock locksiface.Lock
+	var cache cachesiface.Cache
+	if strings.Contains(cfg.Lock, "redis") {
+		// 分布式锁
+		lock = redislock.New(cfg)
+	} else {
+		// 本地锁
+		lock = eagerlock.New()
+	}
+	if strings.Contains(cfg.Cache, "redis") {
+		// 分布式缓存
+		cache = rediscache.New(cfg)
+	} else {
+		// 本地缓存
+		cache = eagercache.New()
+	}
 	// Create server instance
-	lock := eagerlock.New()
-	worker.server = center.NewServer(cfg, broker, backend, lock, true)
+	worker.server = center.NewServer(cfg, broker, backend, cache, lock, true)
 
 	// Register example tasks
 	err = worker.server.RegisterTasks(model.ExtantTaskMap)

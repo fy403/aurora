@@ -2,6 +2,7 @@ package aliyunfc_test
 
 import (
 	"aurora/internal/config"
+	"aurora/internal/constant"
 	"aurora/internal/faas/aliyunfc"
 	"aurora/internal/faas/iface"
 	"encoding/base64"
@@ -23,7 +24,7 @@ func newAliyunFC() (iface.Faas, error) {
 		return nil, errors.New("ACCESS_KEY_SECRET is not defined")
 	}
 	faasCnf := &config.Faas{
-		Driver:          "aliyunfc",
+		Driver:          constant.ALIYUNFC,
 		Endpoint:        os.Getenv("ENDPOINT"),
 		ServiceName:     "test",
 		AccessKeyId:     os.Getenv("ACCESS_KEY_ID"),
