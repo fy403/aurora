@@ -22,9 +22,6 @@ type Lock struct {
 }
 
 func New(cnf *config.Config) Lock {
-	if cnf.Redis.Retries <= 0 {
-		cnf.Redis.Retries = 3
-	}
 	lock := Lock{
 		retries:  cnf.Redis.Retries,
 		interval: 2 * time.Second,
@@ -45,12 +42,11 @@ func New(cnf *config.Config) Lock {
 }
 
 func (r Lock) LockWithRetries(key string, expiration int64) error {
-	for i := 0; i <= r.retries; i++ {
+	for hasTries := 0; hasTries != r.retries; hasTries++ {
 		err := r.Lock(key, expiration)
 		if err == nil {
 			return nil
 		}
-
 		time.Sleep(r.interval)
 	}
 	return ErrRedisLockFailed
@@ -61,7 +57,7 @@ func (r Lock) Lock(key string, expiration64 int64) error {
 	ctx := r.rclient.Context()
 	unixTsToExpireNs := time.Now().Add(expiration).UnixNano()
 
-	success, err := r.rclient.SetNX(ctx, key, unixTsToExpireNs, expiration+1).Result()
+	success, err := r.rclient.SetNX(ctx, key, unixTsToExpireNs, expiration).Result()
 	if err != nil {
 		return err
 	}

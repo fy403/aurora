@@ -24,6 +24,8 @@ This README is just a fast quick start document. You can find more detailed docu
 - [x] 独立配置
 - [x] 前端管理
 - [x] 函数计算
+- [x] 分布式锁
+- [x] 分布式缓存 
 - [ ] 监控支持
    
 [体验地址]()

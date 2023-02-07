@@ -2,10 +2,10 @@ package worker
 
 import (
 	"fmt"
-	"net"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -25,7 +25,7 @@ import (
 	"aurora/internal/opentracing/tracers"
 	"aurora/internal/request"
 	"aurora/internal/tasks"
-	workerutils "aurora/internal/utils/worker"
+	"aurora/internal/utils"
 
 	"github.com/google/uuid"
 )
@@ -36,20 +36,20 @@ func (worker *Worker) httpHealth(w http.ResponseWriter, r *http.Request) {
 }
 
 func (worker *Worker) startHttpServer() (err error) {
-	var port = worker.cfg.HTTP.Port
-	if port == "" {
-		port = ":8080"
-	}
-	l, err := net.Listen("tcp", port)
-	if err != nil {
-		return err
-	}
+	// var port = worker.cfg.HTTP.Port
+	// if port == "" {
+	// 	port = ":8080"
+	// }
+	// l, err := net.Listen("tcp", port)
+	// if err != nil {
+	// 	return err
+	// }
 
-	http.HandleFunc("/health", worker.httpHealth)
+	// http.HandleFunc("/health", worker.httpHealth)
 	// http.Handle("/metrics", promhttp.Handler())
 
-	go http.Serve(l, nil)
-	log.Runtime().Infof("http started on %s", port)
+	// go http.Serve(l, nil)
+	// log.Runtime().Infof("http started on %s", port)
 	return nil
 }
 
@@ -59,7 +59,23 @@ func (worker *Worker) register() (err error) {
 	if len(labels) == 0 {
 		return nil
 	}
-	queueName := uuid.New().String()
+	queueName := strconv.Itoa(int(utils.Hash32WithMap(labels)))
+
+	handlers := []*request.Handler{}
+	for _, handler := range model.ExtantTaskMap {
+		handlers = append(handlers, handler)
+	}
+	req := request.WorkerRequest{
+		UUID:      uuid.New().String(),
+		SpecQueue: queueName,
+		Metrics:   nil,
+		Handlers:  handlers,
+		Labels:    worker.cfg.Worker.Labels,
+		Timestamp: time.Now().Unix(),
+	}
+
+	errChan := make(chan error, 10)
+	errChan <- worker.GetServer().SetWorkerInfo(&req)
 	go func() {
 		for {
 			// CreateSpecQueue and Continuous consumption
@@ -76,39 +92,10 @@ func (worker *Worker) register() (err error) {
 			}
 		}
 	}()
-	_id := "worker_" + uuid.New().String()
-	handlers := []*request.Handler{}
-	for _, handler := range model.ExtantTaskMap {
-		handlers = append(handlers, handler)
-	}
-	req := request.WorkerRequest{
-		UUID:      _id,
-		SpecQueue: queueName,
-		Metrics:   nil,
-		Handlers:  handlers,
-		Labels:    worker.cfg.Worker.Labels,
-		Timestamp: time.Now().Unix(),
-	}
-
-	results, err := workerutils.GetAllWorkersInfo(worker.server.GetCache())
-	var filterResults []*request.WorkerResponse
-	// Purge invalid worker
-	for idx, result := range results {
-		if isValid := result.IsValid(worker.cfg.Worker.BrokerApi); !isValid || result.SpecQueue == queueName {
-			results[idx] = nil
-			req := request.WorkerRequest{
-				UUID: result.UUID,
-			}
-			workerutils.PurgeWorkerInfo(worker.server.GetCache(), &req)
-			continue
-		}
-		filterResults = append(filterResults, result)
-	}
 
 	go func() {
 		ticker := time.NewTicker(time.Second * 15)
 		defer ticker.Stop()
-		errChan := make(chan error, 10)
 		for {
 			select {
 			case err := <-errChan:
@@ -116,10 +103,23 @@ func (worker *Worker) register() (err error) {
 					log.Runtime().Infof("SetWorkerInfo has occur some err: %v", err)
 				}
 			case <-ticker.C:
-				errChan <- workerutils.SetWorkerInfo(worker.server.GetCache(), &req)
+				errChan <- worker.GetServer().SetWorkerInfo(&req)
 			}
 		}
 	}()
+
+	// Purge invalid worker
+	// results, err := worker.GetServer().GetAllWorkersInfo()
+	// for idx, result := range results {
+	// 	if isValid := result.IsValid(worker.cfg.Worker.BrokerApi); !isValid && result.SpecQueue != queueName {
+	// 		results[idx] = nil
+	// 		req := request.WorkerRequest{
+	// 			UUID: result.UUID,
+	// 		}
+	// 		worker.GetServer().PurgeWorkerInfo(&req)
+	// 		continue
+	// 	}
+	// }
 	return
 }
 

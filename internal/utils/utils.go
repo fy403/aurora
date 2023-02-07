@@ -1,26 +1,24 @@
 package utils
 
 import (
+	"encoding/json"
 	"hash"
 	"hash/fnv"
-	"os"
-	"path/filepath"
 	"strings"
 )
 
 const (
-	LockKeyPrefix = "aurora_lock_"
+	LockKeyPrefix = "auroraLock:"
 )
 
 func GetLockName(name, spec string) string {
-	return LockKeyPrefix + filepath.Base(os.Args[0]) + name + spec
+	return LockKeyPrefix + name + spec
 }
 
 func Hash32WithMap(src map[string]string) uint32 {
 	var h32 hash.Hash32 = fnv.New32a()
-	for k, v := range src {
-		h32.Write([]byte(k + v))
-	}
+	data, _ := json.Marshal(src)
+	h32.Write(data)
 	return h32.Sum32()
 }
 

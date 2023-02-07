@@ -2,11 +2,13 @@ package center
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"reflect"
 	"sync"
 
+	"github.com/go-redis/redis/v8"
 	"github.com/google/uuid"
 	"github.com/robfig/cron/v3"
 
@@ -510,4 +512,97 @@ func (server *Server) SendGraphWithContext(ctx context.Context, graph *tasks.Gra
 	case <-done:
 		return asyncResults, nil
 	}
+}
+
+func (server *Server) GetAllWorkersInfo() ([]*request.WorkerResponse, error) {
+	keys, err := server.GetCache().Keys(constant.WorkerKeys)
+	if err != nil {
+		return nil, err
+	}
+	var workerMetaStrs = make([]interface{}, 0, len(keys))
+	for _, key := range keys {
+		workerMetaStr, err := server.GetCache().Get(key.(string))
+		if err != nil {
+			continue
+		}
+		workerMetaStrs = append(workerMetaStrs, workerMetaStr)
+	}
+	var resps = make([]*request.WorkerResponse, 0, len(workerMetaStrs))
+	for _, workerMetaStr := range workerMetaStrs {
+		var workerMeta request.WorkerMeta
+		strData, ok := workerMetaStr.(string)
+		if !ok {
+			return nil, fmt.Errorf("cache.Get data is not string: %#v", workerMetaStr)
+		}
+		err = json.Unmarshal([]byte(strData), &workerMeta)
+		if err != nil {
+			return nil, err
+		}
+		resps = append(resps, &request.WorkerResponse{
+			UUID:      workerMeta.UUID,
+			SpecQueue: workerMeta.SpecQueue,
+			Metrics:   workerMeta.Metrics,
+			Handlers:  workerMeta.Handlers,
+			Labels:    workerMeta.Labels,
+			Timestamp: workerMeta.CreatedAt,
+		})
+	}
+	return resps, nil
+}
+
+func (server *Server) UpdateWorkerInfo(req *request.WorkerRequest) error {
+	data, err := server.GetCache().Get(fmt.Sprintf(constant.WorkerMetaFormat, req.UUID))
+	// 可能已经过期，重新Add
+	if err != nil {
+		if err.Error() == redis.Nil.Error() {
+			return server.SetWorkerInfo(req)
+		} else {
+			return err
+		}
+	}
+	var workerMeta request.WorkerMeta
+	strData, ok := data.(string)
+	if !ok {
+		return fmt.Errorf("cache.Get data is not string: %#v", data)
+	}
+	err = json.Unmarshal([]byte(strData), &workerMeta)
+	if err != nil {
+		return err
+	}
+	// 局部更新
+	if req.SpecQueue != "" {
+		workerMeta.SpecQueue = req.SpecQueue
+	}
+	if len(req.Metrics) > 0 {
+		workerMeta.Metrics = req.Metrics
+	}
+	if len(req.Handlers) > 0 {
+		workerMeta.Handlers = req.Handlers
+	}
+	if len(req.Labels) > 0 {
+		workerMeta.Labels = req.Labels
+	}
+	workerMeta.UUID = req.UUID
+	workerMeta.CreatedAt = req.Timestamp
+	return server.GetCache().Add(fmt.Sprintf(constant.WorkerMetaFormat, req.UUID), data)
+}
+
+func (server *Server) PurgeWorkerInfo(req *request.WorkerRequest) error {
+	return server.GetCache().Del(fmt.Sprintf(constant.WorkerMetaFormat, req.UUID))
+}
+
+func (server *Server) SetWorkerInfo(req *request.WorkerRequest) error {
+	workerMeta := &request.WorkerMeta{
+		UUID:      req.UUID,
+		SpecQueue: req.SpecQueue,
+		Metrics:   req.Metrics,
+		Handlers:  req.Handlers,
+		Labels:    req.Labels,
+		CreatedAt: req.Timestamp,
+	}
+	data, err := json.Marshal(workerMeta)
+	if err != nil {
+		return err
+	}
+	return server.GetCache().Add(fmt.Sprintf(constant.WorkerMetaFormat, workerMeta.UUID), data)
 }

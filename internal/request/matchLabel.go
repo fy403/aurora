@@ -19,6 +19,7 @@ func (wr *WorkerResponse) MatchLabel(labelSelecotr map[string]string) bool {
 	return true
 }
 
+// 检测队列是否有订阅者，无则无效
 func (wr *WorkerResponse) IsValid(brokerApi string) bool {
 	url := brokerApi + wr.SpecQueue
 	resp, err := http.Get(url)

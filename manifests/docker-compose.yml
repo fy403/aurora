@@ -1,7 +1,7 @@
-version: "1.0"
+version: "3.7"
 services:
   web:
-    image: fy403/aurora
+    image: fy403/aurora:v2
     volumes:
       - type: bind
         source: /data/logs/aurora
@@ -18,7 +18,7 @@ services:
       - mongodb
       - redis
   worker:
-    image: fy403/aurora
+    image: fy403/aurora:v2
     volumes:
       - type: bind
         source: /data/logs/aurora
@@ -87,9 +87,9 @@ services:
     ports:
       - "14268:14268"
       - "16686:16686"
-      # - "5775:5775/udp"
-      # - "831:6831/udp"
-      # - "6832:6832/udp"
-      # - "5778:5778"
-      # - "14269:14269"
-      # - "9411:9411 "
+      - "5775:5775/udp"
+      - "831:6831/udp"
+      - "6832:6832/udp"
+      - "5778:5778"
+      - "14269:14269"
+      - "9411:9411 "

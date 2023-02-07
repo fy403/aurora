@@ -4,14 +4,12 @@ LABEL "author"="fy403"
 LABEL "version"="1.0"
 LABEL "email"="1766056726@qq.com"
 
-WORKDIR /usr/src/app
+WORKDIR /usr/src/aurora
 EXPOSE 4332
 EXPOSE 8080
-# pre-copy/cache go.mod for pre-downloading dependencies and only redownloading them in subsequent builds if they change
-COPY go.mod go.sum ./
-RUN go mod download && go mod verify
 
 COPY . .
-RUN go build -v -o /usr/local/bin/aurora ./...
+RUN go mod tidy --compat=1.17
+RUN go install .
 # 默认启动web可替换
-CMD ["aurora", "web", "--config", "./config/config.toml"]
+CMD ["aurora", "web", "--config", "/usr/src/aurora/config/config.toml"]

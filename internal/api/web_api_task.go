@@ -277,7 +277,7 @@ func (*taskHandler) touch(wait *WaitConn, req request.CenterRequest) {
 	log.Runtime().Debugf("Received A Touch: %s, %s", req.TaskType, req.BatchID)
 
 	switch v := req.TaskType; v {
-	case "task":
+	case constant.TASK:
 		asyncResult := result.NewAsyncResult(req.Signatures[0], defaultApi.server.GetBackend())
 		if !asyncResult.GetState().IsSuccess() {
 			hasFinished = false

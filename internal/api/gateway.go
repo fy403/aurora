@@ -5,6 +5,7 @@ import (
 	"aurora/internal/center"
 	"aurora/internal/config"
 	"aurora/internal/log"
+	"aurora/internal/opentracing/tracers"
 	"aurora/internal/request"
 	"fmt"
 	"net/http"
@@ -19,7 +20,6 @@ import (
 	eagerlock "aurora/internal/locks/eager"
 	locksiface "aurora/internal/locks/iface"
 	redislock "aurora/internal/locks/redis"
-	workerutils "aurora/internal/utils/worker"
 
 	"github.com/gin-contrib/static"
 	"github.com/gin-gonic/gin"
@@ -35,6 +35,21 @@ type Api struct {
 
 func NewApi() *Api {
 	return &Api{}
+}
+
+func (api *Api) GetConfig() *config.AppConfig {
+	return api.cfg
+}
+func (api *Api) GetApp() *gin.Engine {
+	return api.app
+}
+
+func (api *Api) GetServer() *center.Server {
+	return api.server
+}
+
+func (api *Api) GetTaskQueue() *task.TaskPool {
+	return api.taskQueue
 }
 
 func (api *Api) Init() (err error) {
@@ -61,7 +76,7 @@ func (api *Api) Init() (err error) {
 	}
 
 	// Only Load Gateway Config
-	var cfg = api.cfg.Gateway
+	var cfg = api.GetConfig().Gateway
 	if cfg == nil {
 		log.Runtime().Fatal("cfg.Center must be set")
 		return
@@ -107,7 +122,7 @@ func (api *Api) Init() (err error) {
 	api.server = center.NewServer(cfg, broker, backend, cache, lock)
 
 	// Register faas instance
-	err = api.server.RegisterFaas(api.cfg.Faas)
+	err = api.GetServer().RegisterFaas(api.cfg.Faas)
 	if err != nil {
 		log.Runtime().Fatalf("RegisterFaas process error:", err)
 		return
@@ -124,8 +139,8 @@ func (api *Api) Stop() (err error) {
 }
 
 func (api *Api) Run() (err error) {
-	app := api.app
-	cfg := api.cfg
+	app := api.GetApp()
+	cfg := api.GetConfig()
 	app.Use(gin.Logger(), gin.Recovery())
 	// 跨域
 	app.Use(func(ctx *gin.Context) {
@@ -157,6 +172,17 @@ func (api *Api) Run() (err error) {
 			ctx.File(cfg.Gateway.Web.WebIndex + "/index.html")
 		})
 	}
+	// Setup opentracing
+	opentracingCfg := api.GetConfig().Opentracing
+	serviceName := "aurora_gateway"
+	if opentracingCfg.ServiceName != "" {
+		serviceName = opentracingCfg.ServiceName
+	}
+	cleanup, err := tracers.SetupTracer(serviceName, opentracingCfg.CollectorEndpoint, opentracingCfg.LogSpans)
+	if err != nil {
+		log.Runtime().Fatalf("Unable to instantiate a tracer:", err)
+	}
+	defer cleanup()
 
 	api.initHandler(app)
 
@@ -253,7 +279,7 @@ func (api *Api) initAuth() (err error) {
 
 // Adjust api req selector to every signatures
 func (api *Api) LabelSelector(requestOBJ *request.CenterRequest) (err error) {
-	results, err := workerutils.GetAllWorkersInfo(api.server.GetCache())
+	results, err := api.GetServer().GetAllWorkersInfo()
 	if err != nil {
 		return err
 	}
@@ -262,10 +288,10 @@ func (api *Api) LabelSelector(requestOBJ *request.CenterRequest) (err error) {
 	for idx, result := range results {
 		if isValid := result.IsValid(api.cfg.Gateway.BrokerApi); !isValid {
 			results[idx] = nil
-			req := request.WorkerRequest{
-				UUID: result.UUID,
-			}
-			workerutils.PurgeWorkerInfo(api.server.GetCache(), &req)
+			// req := request.WorkerRequest{
+			// 	UUID: result.UUID,
+			// }
+			// api.GetServer().PurgeWorkerInfo(&req)
 			continue
 		}
 	}
