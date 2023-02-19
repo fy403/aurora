@@ -13,14 +13,14 @@ import (
 )
 
 type AuthRequest struct {
-	Name     string `json:"Name" validate:"required,gt=0,lt=15"`
-	Password string `json:"Password" validate:"required,gt=0,lt=30"`
+	Name     string `json:"name" validate:"required"`
+	Password string `json:"password" validate:"required"`
 }
 
 type AuthResponse struct {
-	Message string `json:"Message"`
-	Name    string `json:"Name"`
-	UUID    string `json:"UUID"`
+	Message string `json:"message"`
+	Name    string `json:"name"`
+	UUID    string `json:"uuid"`
 }
 
 var validate *validator.Validate
@@ -29,6 +29,7 @@ func init() {
 	validate = validator.New()
 }
 
+// Deprecated
 func Login(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		http.Error(w, "Must use POST", http.StatusBadRequest)
@@ -37,26 +38,7 @@ func Login(w http.ResponseWriter, r *http.Request) {
 
 	session, err := store.Get(r, "aurora_session")
 
-	// Session not expired
-	{
-		// if err == nil && session.IsNew == false {
-		// 	w.WriteHeader(http.StatusOK)
-		// 	responseOBJ := &AuthResponse{
-		// 		Message: "login repeat",
-		// 	}
-		// 	data, err := json.Marshal(responseOBJ)
-		// 	if err != nil {
-		// 		http.Error(w, fmt.Sprintf("Failed to json.Marshal responseOBJ: %v", err), http.StatusBadGateway)
-		// 		return
-		// 	}
-		// 	w.WriteHeader(http.StatusOK)
-		// 	w.Write(data)
-		// 	return
-		// }
-	}
-
 	// Obtain failed or Create a new session
-	// ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓
 	strByte, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, "Read req.Body failed", http.StatusBadRequest)

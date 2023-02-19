@@ -204,11 +204,6 @@ var (
 		"/api/task/touch":  {},
 		"/api/worker/list": {},
 		"/api/faas/list":   {},
-		"/api/faas/langs":  {},
-		"/api/faas/create": {},
-		"/api/faas/write":  {},
-		"/api/faas/up":     {},
-		"/api/faas/delete": {},
 	}
 )
 

@@ -30,7 +30,7 @@ type ListFunctionsOutput struct {
 	EnvVars     map[string]string `json:"envVars"`
 	Labels      map[string]string `json:"labels"`
 	Annotations map[string]string `json:"annotations"`
-	CreatedAt   string            `createdAt:""`
+	CreatedAt   string            `json:"createdAt"`
 }
 
 func New(cnf *config.Faas) (iface.Faas, error) {
