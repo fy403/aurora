@@ -515,7 +515,7 @@ func (server *Server) SendGraphWithContext(ctx context.Context, graph *tasks.Gra
 }
 
 func (server *Server) GetAllWorkersInfo() ([]*request.WorkerResponse, error) {
-	keys, err := server.GetCache().Keys(constant.WorkerKeys)
+	keys, err := server.GetCache().Keys(constant.WOKERKEYS)
 	if err != nil {
 		return nil, err
 	}
@@ -551,7 +551,7 @@ func (server *Server) GetAllWorkersInfo() ([]*request.WorkerResponse, error) {
 }
 
 func (server *Server) UpdateWorkerInfo(req *request.WorkerRequest) error {
-	data, err := server.GetCache().Get(fmt.Sprintf(constant.WorkerMetaFormat, req.UUID))
+	data, err := server.GetCache().Get(fmt.Sprintf(constant.WOKERMETAFORMAT, req.UUID))
 	// 可能已经过期，重新Add
 	if err != nil {
 		if err.Error() == redis.Nil.Error() {
@@ -584,11 +584,11 @@ func (server *Server) UpdateWorkerInfo(req *request.WorkerRequest) error {
 	}
 	workerMeta.UUID = req.UUID
 	workerMeta.CreatedAt = req.Timestamp
-	return server.GetCache().Add(fmt.Sprintf(constant.WorkerMetaFormat, req.UUID), data)
+	return server.GetCache().Add(fmt.Sprintf(constant.WOKERMETAFORMAT, req.UUID), data)
 }
 
 func (server *Server) PurgeWorkerInfo(req *request.WorkerRequest) error {
-	return server.GetCache().Del(fmt.Sprintf(constant.WorkerMetaFormat, req.UUID))
+	return server.GetCache().Del(fmt.Sprintf(constant.WOKERMETAFORMAT, req.UUID))
 }
 
 func (server *Server) SetWorkerInfo(req *request.WorkerRequest) error {
@@ -604,5 +604,5 @@ func (server *Server) SetWorkerInfo(req *request.WorkerRequest) error {
 	if err != nil {
 		return err
 	}
-	return server.GetCache().Add(fmt.Sprintf(constant.WorkerMetaFormat, workerMeta.UUID), data)
+	return server.GetCache().Add(fmt.Sprintf(constant.WOKERMETAFORMAT, workerMeta.UUID), data)
 }

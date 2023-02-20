@@ -322,7 +322,7 @@ func (b *Broker) consumeOne(delivery amqp.Delivery, taskProcessor iface.TaskProc
 	// If the task is not registered, we nack it and drop it,
 	// there might be different workers for processing specific tasks
 	if !b.IsTaskRegistered(signature.Name) {
-		requeue = false
+		requeue = true
 		log.Runtime().Infof("Task not registered with this worker. Requeuing message: %s", delivery.Body)
 		if !signature.IgnoreWhenTaskNotRegistered {
 			delivery.Nack(multiple, requeue)
