@@ -103,6 +103,11 @@ func (worker *Worker) register() (err error) {
 					log.Runtime().Infof("SetWorkerInfo has occur some err: %v", err)
 				}
 			case <-ticker.C:
+				handlers = handlers[:0]
+				for _, handler := range model.ExtantTaskMap {
+					handlers = append(handlers, handler)
+				}
+				worker.server.RegisterTasks(model.ExtantTaskMap)
 				errChan <- worker.GetServer().SetWorkerInfo(&req)
 			}
 		}

@@ -320,7 +320,7 @@ func (worker *Worker) taskSucceeded(signature *tasks.Signature, taskResults []*t
 	// Trigger graph next sequences
 	if signature.GraphUUID != "" {
 		// 不允许重复读取，互斥锁
-		expiration := 10 * time.Second
+		expiration := 15 * time.Second
 		err = worker.GetServer().GetLock().LockWithRetries(utils.GetLockName(signature.GraphUUID, ""), int64(expiration))
 		if err != nil {
 			return err

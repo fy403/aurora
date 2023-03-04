@@ -14,7 +14,7 @@ This README is just a fast quick start document. You can find more detailed docu
 9. 无服务器化：主应用仅需保留最基本的交互接口，而将大多数数据处理任务外包给任务队列。理论上，任务队列模型可以支撑起一个完整的程序架构。
 
 
-   
+
 ### 未来计划
 
 - [x] 链路追踪
@@ -24,11 +24,13 @@ This README is just a fast quick start document. You can find more detailed docu
 - [x] 独立配置
 - [x] 前端管理
 - [x] 函数计算
+- [x] 动态句柄 
 - [x] 分布式锁
 - [x] 分布式缓存 
 - [ ] 监控支持
-   
-[体验地址]()
+  
+
+[体验地址](暂时未开源)
 ### 架构模式
 ![总体架构](images/framework.png)
 任务队列由以下模块组成：
@@ -43,7 +45,8 @@ This README is just a fast quick start document. You can find more detailed docu
 ### 核心部分
 **图任务**
 ![任务模型](./images/workflow.png)
-Aurora模型基础架构基于[RichardKnop/machinery](https://github.com/RichardKnopmachinery); 在此基础上，抽象出图任务模型，该模型的普适性更强，更能代表workeFlow的设计模式。举例来说：图模型是一系列任务的前驱-后继关系组合的任务集合，通过使用拓扑排序得到一个有序序列，并依照有序序列依次执行任务。
+
+Aurora模型基础架构基于[RichardKnop/machinery](https://github.com/RichardKnopmachinery); 在此基础上，抽象出图任务模型，该模型的普适性更强，更能代表workFlow的设计模式。举例来说：本图模型是一系列任务的**前驱-后继**关系组合的任务集合，通过使用**拓扑排序**得到一个有序序列，并依照有序序列依次执行任务，例如：如上所示，Task-0与Task-1并行执行，随后Task-2执行，最后Task-3，Task-4并行执行。
 
 ## Building Aurora
 ```shell
@@ -66,10 +69,12 @@ aurora worker --config=./config/config.toml
 ```txt
 ├───client # 专属客户端实例
 │   └───go # golang的客户端脚本
+|———bin    # 存放动态句柄，注：此目录回持续监控 
 ├───cmd    # 使用github.com/spf13/cobra定义的cmd命令实例
 ├───config # 启动配置文件模板
 ├───draw   # 架构指南
-├───images
+├───images # MD资源
+├───web    # 前端编译文件
 └───internal        # 内部所有代码
     ├───api         # Gateway的api接口定义
     ├───app         # 暂未使用
@@ -79,16 +84,21 @@ aurora worker --config=./config/config.toml
     ├───center      # 一个请求实例，请求broker和backend
     ├───common      # 通用基础类
     ├───config      # 配置实例定义
+    |———cache       # 分布式缓存
     ├───locks       # 分布式锁
     ├───model       # 所有句柄模型
     ├───faas        # faas函数计算驱动模块
     ├───opentracing # 链路追踪
     ├───request     # 请求实例定义
     ├───retry       # 重试模块
+    |———repo        # 文件存储仓库接口
     ├───tasks       # 任务处理反射模型
-    ├───web         # 前端部署，编译入口
     └───worker      # 任务处理模型
 ````
+### 前端图编辑
+通过该前端，可以快速，高效定义一个任务模型。
+![图编辑](./images/frontend.png)
+
 ### 链式追踪,精准定位
-由于架构的设计方式，使得分布式定位问题变得困难；依次引入了opentracing追踪模块，记录每一次任务处理过程和细节。
+由于架构的设计方式，使得分布式定位问题变得困难；因此引入了opentracing追踪模块，记录每一次任务处理过程和细节。
 ![链式追踪](./images/opentracing.png)

@@ -72,6 +72,7 @@ func initConfig() {
 		viper.SetConfigName("config")
 	}
 
+	viper.WatchConfig()
 	viper.AutomaticEnv() // read in environment variables that match
 
 	// If a config file is found, read it in.
