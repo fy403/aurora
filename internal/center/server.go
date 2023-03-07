@@ -119,6 +119,10 @@ func (server *Server) RegisterTasks(namedTaskFuncs map[string]*request.Handler) 
 		}
 		server.registeredTasks.Store(name, handler.Fn)
 
+		// clean before
+		handler.InArgs = handler.InArgs[:0]
+		handler.OutArgs = handler.OutArgs[:0]
+
 		typ := reflect.TypeOf(handler.Fn)
 		for idx := 0; idx < typ.NumIn(); idx++ {
 			arg := tasks.Arg{
