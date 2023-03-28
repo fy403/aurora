@@ -1,6 +1,7 @@
 package worker
 
 import (
+	"aurora/internal/locks/redisson"
 	"fmt"
 	"net/http"
 	_ "net/http/pprof"
@@ -19,7 +20,6 @@ import (
 	"aurora/internal/config"
 	eagerlock "aurora/internal/locks/eager"
 	locksiface "aurora/internal/locks/iface"
-	redislock "aurora/internal/locks/redis"
 	"aurora/internal/log"
 	"aurora/internal/model"
 	"aurora/internal/opentracing/tracers"
@@ -55,11 +55,13 @@ func (worker *Worker) startHttpServer() (err error) {
 
 // Set Worker info to backend
 func (worker *Worker) register() (err error) {
-	labels := worker.cfg.Worker.Labels
-	if len(labels) == 0 {
-		return nil
+	queueName := worker.CustomQueue()
+	if queueName == "" {
+		queueName = worker.GetServer().GetBroker().GetConfig().DefaultQueue
 	}
-	queueName := strconv.Itoa(int(utils.Hash32WithMap(labels)))
+
+	labels := worker.cfg.Worker.Labels
+	queueName += strconv.Itoa(int(utils.Hash32WithMap(labels)))
 
 	handlers := []*request.Handler{}
 	for _, handler := range model.ExtantTaskMap {
@@ -76,23 +78,6 @@ func (worker *Worker) register() (err error) {
 
 	errChan := make(chan error, 10)
 	errChan <- worker.GetServer().SetWorkerInfo(&req)
-	go func() {
-		for {
-			// CreateSpecQueue and Continuous consumption
-			retry, err := worker.server.GetBroker().CreateSpecQueue(queueName, worker.ConsumerTag, worker.Concurrency, worker)
-			if retry {
-				if worker.errorHandler != nil {
-					worker.errorHandler(err)
-				} else {
-					log.Runtime().Warnf("Broker failed with error: %s", err)
-				}
-			} else {
-				log.Runtime().Fatal("register daemon has dead with too many retry")
-				return
-			}
-		}
-	}()
-
 	go func() {
 		ticker := time.NewTicker(time.Second * 15)
 		defer ticker.Stop()
@@ -194,7 +179,7 @@ func (worker *Worker) Init() (err error) {
 	var cache cachesiface.Cache
 	if strings.Contains(cfg.Lock, "redis") {
 		// 分布式锁
-		lock = redislock.New(cfg)
+		lock = redisson.New(cfg)
 	} else {
 		// 本地锁
 		lock = eagerlock.New()

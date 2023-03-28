@@ -1,10 +1,12 @@
 package amqp
 
 import (
+	"aurora/internal/utils"
 	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"sync"
 	"time"
 
@@ -52,6 +54,9 @@ func (b *Broker) StartConsuming(consumerTag string, concurrency int, taskProcess
 	if queueName == "" {
 		queueName = b.GetConfig().DefaultQueue
 	}
+
+	labels := b.GetConfig().Labels
+	queueName += strconv.Itoa(int(utils.Hash32WithMap(labels)))
 
 	conn, channel, queue, _, amqpCloseChan, err := b.Connect(
 		b.GetConfig().Broker,
@@ -322,7 +327,7 @@ func (b *Broker) consumeOne(delivery amqp.Delivery, taskProcessor iface.TaskProc
 	// If the task is not registered, we nack it and drop it,
 	// there might be different workers for processing specific tasks
 	if !b.IsTaskRegistered(signature.Name) {
-		requeue = true
+		requeue = false
 		log.Runtime().Infof("Task not registered with this worker. Requeuing message: %s", delivery.Body)
 		if !signature.IgnoreWhenTaskNotRegistered {
 			delivery.Nack(multiple, requeue)

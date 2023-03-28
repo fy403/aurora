@@ -11,5 +11,6 @@ EXPOSE 8080
 COPY . .
 RUN go mod tidy --compat=1.17
 RUN go install .
+RUN rm -rf /usr/src/aurora/internal/...
 # 默认启动web可替换
 CMD ["aurora", "web", "--config", "/usr/src/aurora/config/config.toml"]

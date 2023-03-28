@@ -65,20 +65,20 @@ func (worker *Worker) NewWorker(
 }
 
 // NewCustomQueueWorker creates Worker instance with Custom Queue
-func (worker *Worker) NewCustomQueueWorker(
-	cnf *config.Config, consumerTag string, concurrency int,
-	brokerServer brokersiface.Broker,
-	backendServer backendsiface.Backend,
-	cache cachesiface.Cache,
-	lock lockiface.Lock, queue string) *Worker {
-	srv := center.NewServer(cnf, brokerServer, backendServer, cache, lock, true)
-	return &Worker{
-		server:      srv,
-		ConsumerTag: consumerTag,
-		Concurrency: concurrency,
-		Queue:       queue,
-	}
-}
+//func (worker *Worker) NewCustomQueueWorker(
+//	cnf *config.Config, consumerTag string, concurrency int,
+//	brokerServer brokersiface.Broker,
+//	backendServer backendsiface.Backend,
+//	cache cachesiface.Cache,
+//	lock lockiface.Lock, queue string) *Worker {
+//	srv := center.NewServer(cnf, brokerServer, backendServer, cache, lock, true)
+//	return &Worker{
+//		server:      srv,
+//		ConsumerTag: consumerTag,
+//		Concurrency: concurrency,
+//		Queue:       queue,
+//	}
+//}
 
 // Launch starts a new worker process. The worker subscribes
 // to the default queue and processes incoming registered tasks
@@ -313,7 +313,6 @@ func (worker *Worker) taskSucceeded(signature *tasks.Signature, taskResults []*t
 				})
 			}
 		}
-
 		worker.GetServer().SendChainTaskWithContext(ctx, successTask)
 	}
 
@@ -325,11 +324,8 @@ func (worker *Worker) taskSucceeded(signature *tasks.Signature, taskResults []*t
 		if err != nil {
 			return err
 		}
-		lockedTime := time.Now()
 		defer func() {
-			if time.Since(lockedTime) < expiration {
-				worker.GetServer().GetLock().UnLock(utils.GetLockName(signature.GraphUUID, ""))
-			}
+			worker.GetServer().GetLock().UnLock(utils.GetLockName(signature.GraphUUID, ""))
 		}()
 		isFinished, err := worker.GetServer().GetBackend().GraphCompleted(signature.GraphUUID, signature.GraphTaskCount)
 		if err != nil {
@@ -407,13 +403,16 @@ func (worker *Worker) taskSucceeded(signature *tasks.Signature, taskResults []*t
 	// if worker.hasAMQPBackend() {
 	// 	defer worker.GetServer().GetBackend().PurgeGroupMeta(signature.GroupUUID)
 	// }
-	//  读写互斥锁，运行重复读
+	//  互斥锁，运行重复读
 	expiration := 4 * time.Second
-	err = worker.GetServer().GetLock().Lock(utils.GetLockName(signature.GroupUUID, signature.ChordCallback.UUID), int64(expiration))
+	err = worker.GetServer().GetLock().LockWithRetries(utils.GetLockName(signature.GroupUUID, signature.ChordCallback.UUID), int64(expiration))
 	if err != nil {
 		// 枪锁失败，退出触发后续
 		return nil
 	}
+	defer func() {
+		worker.GetServer().GetLock().UnLock(utils.GetLockName(signature.GroupUUID, signature.ChordCallback.UUID))
+	}()
 	// Trigger chord callback
 	shouldTrigger, err := worker.GetServer().GetBackend().TriggerChord(signature.GroupUUID)
 	if err != nil {

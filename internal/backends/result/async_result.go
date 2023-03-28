@@ -109,6 +109,12 @@ func (asyncResult *AsyncResult) Get(sleepDuration time.Duration) ([]reflect.Valu
 
 // GetWithTimeout returns task results with a timeout (synchronous blocking call)
 func (asyncResult *AsyncResult) GetWithTimeout(timeoutDuration, sleepDuration time.Duration) ([]reflect.Value, error) {
+	if timeoutDuration == 0 {
+		return asyncResult.Get(sleepDuration)
+	}
+	if sleepDuration == 0 {
+		sleepDuration = time.Second * 1
+	}
 	timeout := time.NewTimer(timeoutDuration)
 
 	for {
@@ -181,6 +187,12 @@ func (chordAsyncResult *ChordAsyncResult) Get(sleepDuration time.Duration) ([]re
 
 // GetWithTimeout returns results of a chain of tasks with timeout (synchronous blocking call)
 func (chainAsyncResult *ChainAsyncResult) GetWithTimeout(timeoutDuration, sleepDuration time.Duration) ([]reflect.Value, error) {
+	if timeoutDuration == 0 {
+		return chainAsyncResult.Get(sleepDuration)
+	}
+	if sleepDuration == 0 {
+		sleepDuration = time.Second * 1
+	}
 	if chainAsyncResult.backend == nil {
 		return nil, ErrBackendNotConfigured
 	}
@@ -221,6 +233,12 @@ func (chainAsyncResult *ChainAsyncResult) GetWithTimeout(timeoutDuration, sleepD
 
 // GetWithTimeout returns result of a chord with a timeout (synchronous blocking call)
 func (chordAsyncResult *ChordAsyncResult) GetWithTimeout(timeoutDuration, sleepDuration time.Duration) ([]reflect.Value, error) {
+	if timeoutDuration == 0 {
+		return chordAsyncResult.Get(sleepDuration)
+	}
+	if sleepDuration == 0 {
+		sleepDuration = time.Second * 1
+	}
 	if chordAsyncResult.backend == nil {
 		return nil, ErrBackendNotConfigured
 	}

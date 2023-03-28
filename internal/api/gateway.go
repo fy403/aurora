@@ -2,8 +2,10 @@ package api
 
 import (
 	"aurora/internal/auth"
+	rediscache "aurora/internal/cache/redis"
 	"aurora/internal/center"
 	"aurora/internal/config"
+	"aurora/internal/locks/redisson"
 	"aurora/internal/log"
 	"aurora/internal/opentracing/tracers"
 	"aurora/internal/request"
@@ -16,11 +18,8 @@ import (
 	amqpbroker "aurora/internal/brokers/amqp"
 	eagercache "aurora/internal/cache/eager"
 	cachesiface "aurora/internal/cache/iface"
-	rediscache "aurora/internal/cache/redis"
 	eagerlock "aurora/internal/locks/eager"
 	locksiface "aurora/internal/locks/iface"
-	redislock "aurora/internal/locks/redis"
-
 	"github.com/gin-contrib/static"
 	"github.com/gin-gonic/gin"
 	"github.com/yddeng/utils/task"
@@ -107,7 +106,7 @@ func (api *Api) Init() (err error) {
 	var cache cachesiface.Cache
 	if strings.Contains(cfg.Lock, "redis") {
 		// 分布式锁
-		lock = redislock.New(cfg)
+		lock = redisson.New(cfg)
 	} else {
 		// 本地锁
 		lock = eagerlock.New()
@@ -306,7 +305,7 @@ func (api *Api) LabelSelector(requestOBJ *request.CenterRequest) (err error) {
 			}
 		}
 		if (len(defaultLabelSelecotr) != 0 || len(sig.LabelSelector) != 0) && !found {
-			err = fmt.Errorf("Not found matched label: %s", requestOBJ.LabelSelector)
+			err = fmt.Errorf("Not found matched label: %s", sig.LabelSelector)
 			return
 		}
 		found = false

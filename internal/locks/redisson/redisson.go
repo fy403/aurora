@@ -2,6 +2,7 @@ package redisson
 
 import (
 	"errors"
+	"github.com/MaricoHan/redisson/mutex"
 	"time"
 
 	"aurora/internal/config"
@@ -15,14 +16,15 @@ var (
 )
 
 type Lock struct {
-	rclient        *redis.Client
-	lockSessionMap map[string]*redisson.Redisson
-	retries        int
-	interval       time.Duration
+	session  *redisson.Redisson
+	lockMap  map[string]*mutex.Mutex
+	retries  int
+	interval time.Duration
 }
 
 func New(cnf *config.Config) Lock {
 	lock := Lock{
+		lockMap:  make(map[string]*mutex.Mutex),
 		retries:  cnf.Redis.Retries,
 		interval: 2 * time.Second,
 	}
@@ -32,40 +34,30 @@ func New(cnf *config.Config) Lock {
 		DB:       cnf.Redis.DB,
 		Password: cnf.Redis.Password,
 	}
-
-	lock.rclient = redis.NewClient(ropt)
-
+	lock.session = redisson.New(redis.NewClient(ropt))
 	return lock
 }
 
-func (r Lock) LockWithRetries(key string, clientId int64) error {
-	for hasTries := 0; hasTries != r.retries; hasTries++ {
-		err := r.Lock(key, clientId)
-		if err == nil {
-			return nil
-		}
-		time.Sleep(r.interval)
-	}
-	return ErrRedissonLockFailed
+func (r Lock) LockWithRetries(key string, value int64) error {
+	return r.Lock(key, value)
 }
 
-func (r Lock) Lock(key string, clientId int64) error {
-	name := key + string(clientId)
-	session := redisson.New(r.rclient)
-	r.lockSessionMap[name] = session
-	session.NewMutex(name)
-	err := mutex.Lock()
+func (r Lock) Lock(key string, _ int64) error {
+	mu := r.session.NewMutex(key)
+	err := mu.Lock()
 	if err != nil {
 		return err
 	}
+	r.lockMap[key] = mu
 	return nil
 }
 
 func (r Lock) UnLock(key string) error {
-	err = mutex.Unlock()
-	if err != nil {
-		return err
+	mu, ok := r.lockMap[key]
+	if !ok {
+		return nil
 	}
-
-	return nil
+	err := mu.Unlock()
+	delete(r.lockMap, key)
+	return err
 }
