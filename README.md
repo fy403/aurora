@@ -314,7 +314,7 @@ curl --location --request POST 'http://localhost:4332/api/task/simple/touch' \
 ```txt
 ├───client # 专属客户端实例
 │   └───go # golang的客户端脚本
-|———bin    # 存放动态句柄，注：此目录回持续监控 
+|———bin    # 存放动态句柄，注：此目录会持续监控 
 ├───cmd    # 使用github.com/spf13/cobra定义的cmd命令实例
 ├───config # 启动配置文件模板
 ├───draw   # 架构指南
