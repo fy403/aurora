@@ -15,8 +15,14 @@ import (
 var ExtantTaskMap map[string]*request.Handler = make(map[string]*request.Handler)
 
 func init() {
-	pathName := "./bin"
+	rootF := "./bin"
+	// 遍历整个目录树，并注册句柄
+	initBinary(rootF)
 	// 监控bin目录，二进制句柄注册
+	watchBinaryPath(rootF)
+}
+
+func initBinary(pathName string) {
 	var files []string
 	// 扫描pathName下的所有子文件
 	err := filepath.Walk(pathName, func(path string, info os.FileInfo, err error) error {
@@ -43,8 +49,6 @@ func init() {
 			Fn:    createFn(absFile),
 		}
 	}
-
-	watchBinaryPath(pathName)
 }
 
 func watchBinaryPath(pathName string) {
@@ -93,7 +97,7 @@ func watchBinaryPath(pathName string) {
 			}
 		}
 	}()
-
+	watcher.Add(pathName)
 	filepath.Walk(pathName, func(path string, info os.FileInfo, err error) error {
 		if info.IsDir() {
 			err = watcher.Add(path)

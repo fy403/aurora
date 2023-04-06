@@ -25,7 +25,6 @@ type Backend struct {
 	common.Backend
 	client *mongo.Client
 	tc     *mongo.Collection
-	wc     *mongo.Collection
 	gmc    *mongo.Collection
 	gc     *mongo.Collection
 	fc     *mongo.Collection
@@ -54,12 +53,13 @@ func (b *Backend) InitGroup(groupUUID string, taskUUIDs []string) error {
 }
 
 // GroupCompleted returns true if all tasks in a group finished
-func (b *Backend) GroupCompleted(groupUUID string, groupTaskCount int) (bool, error) {
+func (b *Backend) GroupCompleted(groupUUID string) (bool, error) {
 	groupMeta, err := b.getGroupMeta(groupUUID)
 	if err != nil {
 		return false, err
 	}
 
+	groupTaskCount := len(groupMeta.TaskUUIDs)
 	taskStates, err := b.getStates(groupMeta.TaskUUIDs...)
 	if err != nil {
 		return false, err
@@ -76,7 +76,7 @@ func (b *Backend) GroupCompleted(groupUUID string, groupTaskCount int) (bool, er
 }
 
 // GroupTaskStates returns states of all tasks in the group
-func (b *Backend) GroupTaskStates(groupUUID string, groupTaskCount int) ([]*tasks.TaskState, error) {
+func (b *Backend) GroupTaskStates(groupUUID string) ([]*tasks.TaskState, error) {
 	groupMeta, err := b.getGroupMeta(groupUUID)
 	if err != nil {
 		return []*tasks.TaskState{}, err
@@ -280,13 +280,6 @@ func (b *Backend) groupMetasCollection() *mongo.Collection {
 	return b.gmc
 }
 
-func (b *Backend) workersCollection() *mongo.Collection {
-	b.once.Do(func() {
-		b.connect()
-	})
-	return b.wc
-}
-
 func (b *Backend) graphCollection() *mongo.Collection {
 	b.once.Do(func() {
 		b.connect()
@@ -318,7 +311,6 @@ func (b *Backend) connect() error {
 
 	b.tc = b.client.Database(database).Collection("tasks")
 	b.gmc = b.client.Database(database).Collection("group_metas")
-	b.wc = b.client.Database(database).Collection("workers")
 	b.gc = b.client.Database(database).Collection("graphs")
 	b.fc = b.client.Database(database).Collection("faas_metas")
 
@@ -396,7 +388,7 @@ func (b *Backend) InitGraph(graph *tasks.Graph) error {
 	return err
 }
 
-func (b *Backend) GraphCompleted(graphUUID string, graphVertexesCount int) (bool, error) {
+func (b *Backend) GraphCompleted(graphUUID string) (bool, error) {
 	graphMeta, err := b.getGraphMeta(graphUUID)
 	if err != nil {
 		return false, err
@@ -405,6 +397,7 @@ func (b *Backend) GraphCompleted(graphUUID string, graphVertexesCount int) (bool
 	for _, s := range graphMeta.Vertexes {
 		taskUUIDs = append(taskUUIDs, s.UUID)
 	}
+	graphVertexesCount := len(taskUUIDs)
 	taskStates, err := b.getStates(taskUUIDs...)
 	if err != nil {
 		return false, err

@@ -99,11 +99,6 @@ func (worker *Worker) LaunchAsync(errorsChan chan<- error) {
 	log.Runtime().Infof("Launching a worker with the following settings:")
 	log.Runtime().Infof("- Broker: %s", RedactURL(cnf.Broker))
 	log.Runtime().Infof("- Labels: %s", cnf.Labels)
-	if worker.Queue == "" {
-		log.Runtime().Infof("- DefaultQueue: %s", cnf.DefaultQueue)
-	} else {
-		log.Runtime().Infof("- CustomQueue: %s", worker.Queue)
-	}
 	log.Runtime().Infof("- ResultBackend: %s", RedactURL(cnf.ResultBackend))
 	if cnf.AMQP != nil {
 		log.Runtime().Infof("- AMQP: %s", cnf.AMQP.Exchange)
@@ -327,7 +322,7 @@ func (worker *Worker) taskSucceeded(signature *tasks.Signature, taskResults []*t
 		defer func() {
 			worker.GetServer().GetLock().UnLock(utils.GetLockName(signature.GraphUUID, ""))
 		}()
-		isFinished, err := worker.GetServer().GetBackend().GraphCompleted(signature.GraphUUID, signature.GraphTaskCount)
+		isFinished, err := worker.GetServer().GetBackend().GraphCompleted(signature.GraphUUID)
 		if err != nil {
 			return fmt.Errorf("Get complemented state for graph %s returned error: %s", signature.GraphUUID, err)
 		}
@@ -388,7 +383,6 @@ func (worker *Worker) taskSucceeded(signature *tasks.Signature, taskResults []*t
 	// Check if all task in the group has completed
 	groupCompleted, err := worker.GetServer().GetBackend().GroupCompleted(
 		signature.GroupUUID,
-		signature.GroupTaskCount,
 	)
 	if err != nil {
 		return fmt.Errorf("Completed check for group %s returned error: %s", signature.GroupUUID, err)
@@ -427,7 +421,6 @@ func (worker *Worker) taskSucceeded(signature *tasks.Signature, taskResults []*t
 	// Get task states
 	taskStates, err := worker.GetServer().GetBackend().GroupTaskStates(
 		signature.GroupUUID,
-		signature.GroupTaskCount,
 	)
 	if err != nil {
 		log.Runtime().Errorf(

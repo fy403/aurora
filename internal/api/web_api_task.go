@@ -89,6 +89,7 @@ func (*taskHandler) send(wait *WaitConn, req request.CenterRequest) {
 		}
 		// Clean sensitive information
 		tasks.CleanSignatureSensitiveInfo(asyncResultPtr.Signature)
+		responseOBJ.TaskUUID = asyncResultPtr.Signature.UUID
 		responseOBJ.TaskResponses = append(responseOBJ.TaskResponses, &request.TaskResponse{
 			Results: tasks.InterfaceReadableResults(results),
 			State:   asyncResultPtr.GetState().State,
@@ -118,6 +119,7 @@ func (*taskHandler) send(wait *WaitConn, req request.CenterRequest) {
 			}
 			// Clean sensitive information
 			tasks.CleanSignatureSensitiveInfo(asyncResultPtr.Signature)
+			responseOBJ.TaskUUID = group.GroupUUID
 			responseOBJ.TaskResponses = append(responseOBJ.TaskResponses, &request.TaskResponse{
 				Results: tasks.InterfaceReadableResults(results),
 				State:   asyncResultPtr.GetState().State, // 每个state
@@ -146,6 +148,7 @@ func (*taskHandler) send(wait *WaitConn, req request.CenterRequest) {
 			}
 			// Clean sensitive information
 			tasks.CleanSignatureSensitiveInfo(asyncResultPtr.Signature)
+			responseOBJ.TaskUUID = graph.GraphUUID
 			responseOBJ.TaskResponses = append(responseOBJ.TaskResponses, &request.TaskResponse{
 				Results: tasks.InterfaceReadableResults(results),
 				State:   asyncResultPtr.GetState().State, // 每个state
@@ -185,6 +188,7 @@ func (*taskHandler) send(wait *WaitConn, req request.CenterRequest) {
 			wait.SetResult(fmt.Sprintf("Task has failed with error: %s", err.Error()), "")
 			return
 		}
+		responseOBJ.TaskUUID = chordAsyncResult.GetChordAyncResults().Signature.UUID
 		responseOBJ.TaskResponses = append(responseOBJ.TaskResponses, &request.TaskResponse{
 			Results:    tasks.InterfaceReadableResults(results),
 			Signatures: signatures,
@@ -216,6 +220,7 @@ func (*taskHandler) send(wait *WaitConn, req request.CenterRequest) {
 		if err != nil && err != result.ErrTimeoutReached {
 			wait.SetResult(fmt.Sprintf("Task has failed with error: %s", err.Error()), "")
 		}
+		responseOBJ.TaskUUID = chainAsyncResult.GetChainAyncResults().Signature.UUID
 		responseOBJ.TaskResponses = append(responseOBJ.TaskResponses, &request.TaskResponse{
 			Results:    tasks.InterfaceReadableResults(results),
 			State:      asyncResultPtr.GetState().State, // 最后一个的状态
@@ -370,5 +375,48 @@ func (*taskHandler) touch(wait *WaitConn, req request.CenterRequest) {
 		wait.SetResult("continue", responseOBJ)
 	} else {
 		wait.SetResult("", responseOBJ)
+	}
+}
+
+func (*taskHandler) simpleTouch(wait *WaitConn, req struct {
+	TaskType string `json:"task_type"`
+	TaskUUID string `json:"task_uuid"`
+}) {
+	log.Runtime().Infof("%s %v", wait.GetRoute(), req)
+	defer func() { wait.Done() }()
+	switch v := req.TaskType; v {
+	case constant.TASK, constant.CHORD, constant.CHAIN:
+		taskState, err := defaultApi.server.GetBackend().GetState(req.TaskUUID)
+		if err != nil {
+			wait.SetResult(err.Error(), "")
+			return
+		}
+		wait.SetResult("", taskState)
+	case constant.GROUP:
+		taskStates, err := defaultApi.server.GetBackend().GroupTaskStates(req.TaskUUID)
+		if err != nil {
+			wait.SetResult(err.Error(), "")
+			return
+		}
+		wait.SetResult("", taskStates)
+	case constant.GRAPH:
+		graph, err := defaultApi.server.GetBackend().GraphStates(req.TaskUUID)
+		if err != nil {
+			wait.SetResult(err.Error(), "")
+			return
+		}
+		taskStates := make([]*tasks.TaskState, 0, len(graph.Vertexes))
+		for _, sig := range graph.Vertexes {
+			taskState, err := defaultApi.server.GetBackend().GetState(sig.UUID)
+			if err != nil {
+				log.Runtime().Warnf("GetState failed: %v", err)
+			}
+			taskStates = append(taskStates, taskState)
+		}
+		wait.SetResult("", taskStates)
+	default:
+		err := errors.New("Unexpected task type: " + v)
+		wait.SetResult(err.Error(), "")
+		return
 	}
 }

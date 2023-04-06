@@ -2,7 +2,9 @@ package worker
 
 import (
 	"aurora/internal/locks/redisson"
+	"aurora/internal/metrics"
 	"fmt"
+	"net"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -28,6 +30,8 @@ import (
 	"aurora/internal/utils"
 
 	"github.com/google/uuid"
+	"github.com/pkg/errors"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 func (worker *Worker) httpHealth(w http.ResponseWriter, r *http.Request) {
@@ -36,20 +40,21 @@ func (worker *Worker) httpHealth(w http.ResponseWriter, r *http.Request) {
 }
 
 func (worker *Worker) startHttpServer() (err error) {
-	// var port = worker.cfg.HTTP.Port
-	// if port == "" {
-	// 	port = ":8080"
-	// }
-	// l, err := net.Listen("tcp", port)
-	// if err != nil {
-	// 	return err
-	// }
+	var port = worker.cfg.HTTP.Port
+	if port == "" {
+		port = ":8080"
+	}
+	l, err := net.Listen("tcp", port)
+	if err != nil {
+		log.Runtime().Warnf("startHttpServer failed: %v", err)
+		return
+	}
 
-	// http.HandleFunc("/health", worker.httpHealth)
-	// http.Handle("/metrics", promhttp.Handler())
+	http.HandleFunc("/health", worker.httpHealth)
+	http.Handle("/metrics", promhttp.Handler())
 
-	// go http.Serve(l, nil)
-	// log.Runtime().Infof("http started on %s", port)
+	go http.Serve(l, nil)
+	log.Runtime().Infof("http started on %s", port)
 	return nil
 }
 
@@ -57,7 +62,7 @@ func (worker *Worker) startHttpServer() (err error) {
 func (worker *Worker) register() (err error) {
 	queueName := worker.CustomQueue()
 	if queueName == "" {
-		queueName = worker.GetServer().GetBroker().GetConfig().DefaultQueue
+		return errors.Errorf("Must have Queue param, but it`s %s", queueName)
 	}
 
 	labels := worker.cfg.Worker.Labels
@@ -99,24 +104,24 @@ func (worker *Worker) register() (err error) {
 	}()
 
 	// Purge invalid worker
-	// results, err := worker.GetServer().GetAllWorkersInfo()
-	// for idx, result := range results {
-	// 	if isValid := result.IsValid(worker.cfg.Worker.BrokerApi); !isValid && result.SpecQueue != queueName {
-	// 		results[idx] = nil
-	// 		req := request.WorkerRequest{
-	// 			UUID: result.UUID,
-	// 		}
-	// 		worker.GetServer().PurgeWorkerInfo(&req)
-	// 		continue
-	// 	}
-	// }
+	results, err := worker.GetServer().GetAllWorkersInfo()
+	for idx, result := range results {
+		if isValid := result.IsValid(worker.cfg.Worker.BrokerApi); !isValid && result.SpecQueue != queueName {
+			results[idx] = nil
+			req := request.WorkerRequest{
+				UUID: result.UUID,
+			}
+			worker.GetServer().PurgeWorkerInfo(&req)
+			continue
+		}
+	}
 	return
 }
 
 func (worker *Worker) initMetrics() (err error) {
-	// if err = metrics.InitMetrics(global.Region(), config.AppTag, worker.cfg.Files.Metrics, ""); err != nil {
-	// 	return err
-	// }
+	if err = metrics.InitMetrics(worker.cfg.Region, config.AppTag, worker.cfg.Files.Metrics, ""); err != nil {
+		return err
+	}
 	return nil
 }
 

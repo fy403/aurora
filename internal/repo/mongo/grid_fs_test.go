@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 func NewRepo() (iface.Repo, error) {
@@ -23,7 +22,7 @@ func NewRepo() (iface.Repo, error) {
 	return repo, nil
 }
 
-func TestNew(t *testing.T) {
+func TestRepo(t *testing.T) {
 	t.Parallel()
 	if os.Getenv("MONGODB_URL") == "" {
 		t.Skip("MONGODB_URL is not defined")
@@ -41,7 +40,7 @@ func TestNew(t *testing.T) {
 	DeleteFile(t, fileID)
 }
 
-func UploadFile(t *testing.T) primitive.ObjectID {
+func UploadFile(t *testing.T) string {
 	if os.Getenv("MONGODB_URL") == "" {
 		t.Skip("MONGODB_URL is not defined")
 	}
@@ -59,7 +58,7 @@ func UploadFile(t *testing.T) primitive.ObjectID {
 	return fileID
 }
 
-func UpdateFile(t *testing.T, fileID primitive.ObjectID) {
+func UpdateFile(t *testing.T, fileID string) {
 	if os.Getenv("MONGODB_URL") == "" {
 		t.Skip("MONGODB_URL is not defined")
 	}
@@ -75,7 +74,7 @@ func UpdateFile(t *testing.T, fileID primitive.ObjectID) {
 	}
 }
 
-func DownloadFile(t *testing.T, fileID primitive.ObjectID) {
+func DownloadFile(t *testing.T, fileID string) {
 	if os.Getenv("MONGODB_URL") == "" {
 		t.Skip("MONGODB_URL is not defined")
 	}
@@ -92,7 +91,7 @@ func DownloadFile(t *testing.T, fileID primitive.ObjectID) {
 	t.Logf("content: %s", fileContent)
 }
 
-func DeleteFile(t *testing.T, fileID primitive.ObjectID) {
+func DeleteFile(t *testing.T, fileID string) {
 	if os.Getenv("MONGODB_URL") == "" {
 		t.Skip("MONGODB_URL is not defined")
 	}

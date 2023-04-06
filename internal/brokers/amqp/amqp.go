@@ -67,7 +67,7 @@ func (b *Broker) StartConsuming(consumerTag string, concurrency int, taskProcess
 		queueName,                       // queue name
 		true,                            // queue durable
 		false,                           // queue delete when unused
-		b.GetConfig().AMQP.BindingKey,   // queue binding key
+		queueName,                       // queue binding key
 		nil,                             // exchange declare args
 		amqp.Table(b.GetConfig().AMQP.QueueDeclareArgs), // queue declare args
 		amqp.Table(b.GetConfig().AMQP.QueueBindingArgs), // queue binding args

@@ -473,7 +473,7 @@ __webpack_require__.r(__webpack_exports__);
     this.$nextTick(() => {
       // 默认加载流程的数据、在这里可以根据具体的业务返回符合流程数据格式的数据即可
       // this.dataReload(getData())
-      // this.dataReload(this.data)
+      this.dataReload(this.data);
     });
   },
   methods: {

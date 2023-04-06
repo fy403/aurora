@@ -179,7 +179,7 @@ func TestGroupCompleted(t *testing.T) {
 	}
 	taskResultsState := make(map[string]string)
 
-	isCompleted, err := backend.GroupCompleted(groupUUID, len(taskUUIDs))
+	isCompleted, err := backend.GroupCompleted(groupUUID)
 	if assert.NoError(t, err) {
 		assert.False(t, isCompleted, "Actually group is not completed")
 	}
@@ -211,12 +211,12 @@ func TestGroupCompleted(t *testing.T) {
 	assert.NoError(t, err)
 	taskResultsState[taskUUIDs[2]] = tasks.StateSuccess
 
-	isCompleted, err = backend.GroupCompleted(groupUUID, len(taskUUIDs))
+	isCompleted, err = backend.GroupCompleted(groupUUID)
 	if assert.NoError(t, err) {
 		assert.True(t, isCompleted, "Actually group is completed")
 	}
 
-	taskStates, err := backend.GroupTaskStates(groupUUID, len(taskUUIDs))
+	taskStates, err := backend.GroupTaskStates(groupUUID)
 	assert.NoError(t, err)
 
 	assert.Equal(t, len(taskStates), len(taskUUIDs), "Wrong len tasksStates")
@@ -240,60 +240,9 @@ func TestGroupStates(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	taskStates, err := backend.GroupTaskStates(groupUUID, len(taskUUIDs))
+	taskStates, err := backend.GroupTaskStates(groupUUID)
 	assert.NoError(t, err)
 	for i, taskState := range taskStates {
 		assert.Equal(t, taskUUIDs[i], taskState.TaskUUID)
 	}
 }
-
-// func TestWorkerInfo(t *testing.T) {
-// 	if os.Getenv("MONGODB_URL") == "" {
-// 		t.Skip("MONGODB_URL is not defined")
-// 	}
-
-// 	cnf := &config.Config{
-// 		ResultBackend:   os.Getenv("MONGODB_URL"),
-// 		ResultsExpireIn: 30,
-// 	}
-// 	backend, err := mongo.New(cnf)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-// 	// Insert
-// 	for i := int64(0); i < 10; i++ {
-// 		req := request.WorkerRequest{
-// 			UUID: strconv.FormatInt(i, 10),
-// 			Labels: map[string]string{
-// 				"k1": "v1",
-// 				"k2": "v2",
-// 			},
-// 			Timestamp: time.Now().Unix(),
-// 		}
-// 		err = backend.SetWorkerInfo(&req)
-// 		assert.NoError(t, err)
-// 	}
-// 	// Get
-// 	results, err := backend.GetAllWorkersInfo()
-// 	assert.NotEmpty(t, results)
-
-// 	// Update
-// 	req := request.WorkerRequest{
-// 		UUID: "0",
-// 		Labels: map[string]string{
-// 			"k1": "v1",
-// 			"k2": "v2",
-// 			"k3": "v3",
-// 		},
-// 		Timestamp: time.Now().Unix(),
-// 	}
-// 	err = backend.UpdateWorkerInfo(&req)
-// 	assert.NoError(t, err)
-
-// 	// Purge
-// 	req = request.WorkerRequest{
-// 		UUID: "9",
-// 	}
-// 	err = backend.PurgeWorkerInfo(&req)
-// 	assert.NoError(t, err)
-// }

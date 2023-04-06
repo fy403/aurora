@@ -31,24 +31,28 @@ func New(cnf *config.Config) (iface.Repo, error) {
 	}, nil
 }
 
-func (r *Repo) UploadFile(fileName string, fileContent []byte) (primitive.ObjectID, error) {
+func (r *Repo) UploadFile(fileName string, fileContent []byte) (string, error) {
 	bucket := r.getGridFSBucket("")
 	fileID, err := bucket.UploadFromStream(fileName, bytes.NewBuffer(fileContent))
 	if err != nil {
 		log.Runtime().Error(err.Error())
-		return primitive.NilObjectID, err
+		return primitive.NilObjectID.String(), err
 	}
-	return fileID, nil
+	return fileID.Hex(), nil
 }
 
-func (r *Repo) UpdateFile(fileID primitive.ObjectID, fileName string, fileContent []byte) error {
+func (r *Repo) UpdateFile(fileID string, fileName string, fileContent []byte) error {
 	bucket := r.getGridFSBucket("")
-	err := r.DeleteFile(fileID)
+	id, err := primitive.ObjectIDFromHex(fileID)
+	if err != nil {
+		return err
+	}
+	err = r.DeleteFile(fileID)
 	if err != nil {
 		log.Runtime().Error(err.Error())
 		return err
 	}
-	err = bucket.UploadFromStreamWithID(fileID, fileName, bytes.NewBuffer(fileContent))
+	err = bucket.UploadFromStreamWithID(id, fileName, bytes.NewBuffer(fileContent))
 	if err != nil {
 		log.Runtime().Error(err.Error())
 		return err
@@ -56,19 +60,27 @@ func (r *Repo) UpdateFile(fileID primitive.ObjectID, fileName string, fileConten
 	return nil
 }
 
-func (r *Repo) DeleteFile(fileID primitive.ObjectID) error {
+func (r *Repo) DeleteFile(fileID string) error {
+	id, err := primitive.ObjectIDFromHex(fileID)
+	if err != nil {
+		return err
+	}
 	bucket := r.getGridFSBucket("")
-	if err := bucket.Delete(fileID); err != nil && err != gridfs.ErrFileNotFound {
+	if err := bucket.Delete(id); err != nil && err != gridfs.ErrFileNotFound {
 		log.Runtime().Error(err.Error())
 		return err
 	}
 	return nil
 }
 
-func (r *Repo) DownloadFile(fileID primitive.ObjectID) (fileContent []byte, err error) {
+func (r *Repo) DownloadFile(fileID string) (fileContent []byte, err error) {
+	id, err := primitive.ObjectIDFromHex(fileID)
+	if err != nil {
+		return nil, err
+	}
 	bucket := r.getGridFSBucket("")
 	fileBuffer := bytes.NewBuffer(nil)
-	if _, err = bucket.DownloadToStream(fileID, fileBuffer); err != nil {
+	if _, err = bucket.DownloadToStream(id, fileBuffer); err != nil {
 		log.Runtime().Error(err.Error())
 		return nil, err
 	}

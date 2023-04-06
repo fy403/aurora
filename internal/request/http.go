@@ -15,7 +15,7 @@ type CenterRequest struct {
 	LabelSelector   map[string]string  `json:"label_selector"`
 	Relations       []map[int]int      `json:"relations"`
 	Signatures      []*tasks.Signature `json:"signatures" validate:"required,gt=0"`
-	TimeoutDuration int                `json:"timeout_duration" validate:"min=0`
+	TimeoutDuration int                `json:"timeout_duration" validate:"min=0"`
 	SleepDuration   int                `json:"sleep_duration" validate:"min=0"`
 	SendConcurrency int                `json:"send_concurrency" validate:"min=0"`
 	CallBack        *tasks.Signature   `json:"callBack" validate:"required_if=TaskType chord"`
@@ -27,6 +27,7 @@ type CenterResponse struct {
 	BatchID       string          `json:"batch_id"` // unique id for request
 	Timestamp     int64           `json:"timestamp"`
 	TaskType      string          `json:"task_type"`
+	TaskUUID      string          `json:"task_uuid"`
 	TaskResponses []*TaskResponse `json:"task_responses"`
 }
 
@@ -75,6 +76,7 @@ type Handler struct {
 type RabbitMQApi struct {
 	Consumers int    `json:"consumers"`
 	State     string `json:"state"`
+	Messages  int    `json:"messages"`
 }
 
 type FaasResponse struct {

@@ -10,6 +10,7 @@ import (
 // Global App Config
 type AppConfig struct {
 	Help        string
+	Region      string
 	Files       *Files
 	Opentracing *Opentracing
 	HTTP        *HTTP

@@ -8,13 +8,13 @@ import (
 type Backend interface {
 	// Group related functions
 	InitGroup(groupUUID string, taskUUIDs []string) error
-	GroupCompleted(groupUUID string, groupTaskCount int) (bool, error)
-	GroupTaskStates(groupUUID string, groupTaskCount int) ([]*tasks.TaskState, error)
+	GroupCompleted(groupUUID string) (bool, error)
+	GroupTaskStates(groupUUID string) ([]*tasks.TaskState, error)
 	TriggerChord(groupUUID string) (bool, error)
 
 	// Graph related functions
 	InitGraph(graph *tasks.Graph) error
-	GraphCompleted(graphUUID string, graphVertexesCount int) (bool, error)
+	GraphCompleted(graphUUID string) (bool, error)
 	GraphStates(graphUUID string) (*tasks.Graph, error)
 	UpdateGraphStates(graph *tasks.Graph) error
 

@@ -43,6 +43,9 @@ func (wr *WorkerResponse) IsValid(brokerApi string) bool {
 		log.Runtime().Errorf("isValid func call fail: %s", err)
 		return false
 	}
+	if jsonTable.Messages != 0 {
+		return false
+	}
 	if jsonTable.Consumers == 0 {
 		return false
 	}

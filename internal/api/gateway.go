@@ -7,6 +7,7 @@ import (
 	"aurora/internal/config"
 	"aurora/internal/locks/redisson"
 	"aurora/internal/log"
+	"aurora/internal/metrics"
 	"aurora/internal/opentracing/tracers"
 	"aurora/internal/request"
 	"fmt"
@@ -20,8 +21,10 @@ import (
 	cachesiface "aurora/internal/cache/iface"
 	eagerlock "aurora/internal/locks/eager"
 	locksiface "aurora/internal/locks/iface"
+
 	"github.com/gin-contrib/static"
 	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/yddeng/utils/task"
 )
 
@@ -199,23 +202,25 @@ func (api *Api) Run() (err error) {
 var (
 	// 需要验证token的路由
 	routeNeedToken = map[string]struct{}{
-		"/api/task/send":   {},
-		"/api/task/touch":  {},
-		"/api/worker/list": {},
-		"/api/faas/list":   {},
+		"/api/task/send":         {},
+		"/api/task/simple/touch": {},
+		"/api/task/touch":        {},
+		"/api/worker/list":       {},
+		"/api/faas/list":         {},
 	}
 )
 
 func (api *Api) initHandler(app *gin.Engine) {
-	authGroup := app.Group("/auth")
-	apiGroup := app.Group("/api")
 	app.GET("/health", func(ctx *gin.Context) {
 		ctx.JSON(http.StatusOK, gin.H{
 			"message": "ok",
 			"data":    "",
 		})
 	})
+	app.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
+	authGroup := app.Group("/auth")
+	apiGroup := app.Group("/api")
 	authHandle := new(authHandler)
 	authGroup.POST("/login", api.WarpHandle(authHandle.login))
 	authGroup.GET("/info", api.WarpHandle(authHandle.info))
@@ -225,6 +230,7 @@ func (api *Api) initHandler(app *gin.Engine) {
 	taskHandle := new(taskHandler)
 	taskGroup.POST("/send", api.WarpHandle(taskHandle.send))
 	taskGroup.POST("/touch", api.WarpHandle(taskHandle.touch))
+	taskGroup.POST("/simple/touch", api.WarpHandle(taskHandle.simpleTouch))
 
 	workerGroup := apiGroup.Group("/worker")
 	workerHandler := new(workerHandler)
@@ -251,9 +257,9 @@ func (api *Api) checkToken(ctx *gin.Context, route string) bool {
 }
 
 func (api *Api) initMetrics() (err error) {
-	// if err = metrics.InitMetrics(global.Region(), config.AppTag, api.cfg.Files.Metrics, ""); err != nil {
-	// 	return err
-	// }
+	if err = metrics.InitMetrics(api.cfg.Region, config.AppTag, api.cfg.Files.Metrics, ""); err != nil {
+		return err
+	}
 	return nil
 }
 
