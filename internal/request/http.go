@@ -2,8 +2,6 @@ package request
 
 import (
 	"aurora/internal/tasks"
-
-	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 type CenterRequest struct {
@@ -85,16 +83,4 @@ type FaasResponse struct {
 	FunctionName string `json:"function_name"`
 	Description  string `json:"description"`
 	Timestamp    int64  `json:"timestamp"`
-}
-
-type OFDBMeta struct {
-	UUID                 string             `bson:"_id"`
-	Driver               string             `bson:"driver"`
-	Name                 string             `bson:"name"`
-	Lang                 string             `bson:"lang"`
-	URL                  string             `json:"url"`
-	Content_File_ID      primitive.ObjectID `bson:"content_file_id"`
-	Dependencies_File_ID primitive.ObjectID `bson:"dependencies_file_id"`
-	Status               string             `bson:"status"`
-	CreatedAt            int64              `bson:"created_at"`
 }

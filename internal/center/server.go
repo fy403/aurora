@@ -12,7 +12,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/robfig/cron/v3"
 
+	backendsiface "aurora/internal/backends/iface"
 	"aurora/internal/backends/result"
+	cachesiface "aurora/internal/cache/iface"
 	"aurora/internal/config"
 	"aurora/internal/constant"
 	"aurora/internal/faas"
@@ -23,10 +25,6 @@ import (
 	"aurora/internal/opentracing/tracing"
 	"aurora/internal/request"
 	"aurora/internal/tasks"
-	algorithm "aurora/internal/utils/algorithm"
-
-	backendsiface "aurora/internal/backends/iface"
-	cachesiface "aurora/internal/cache/iface"
 
 	brokersiface "aurora/internal/brokers/iface"
 	lockiface "aurora/internal/locks/iface"
@@ -482,7 +480,7 @@ func (server *Server) SendGraphWithContext(ctx context.Context, graph *tasks.Gra
 	}
 
 	// TopologySort
-	initialTasks, ok := algorithm.TopologySort(graph)
+	initialTasks, ok := tasks.TopologySort(graph)
 	if !ok {
 		return nil, errors.New("TopologySort failed")
 	}

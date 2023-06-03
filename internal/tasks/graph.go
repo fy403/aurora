@@ -1,10 +1,6 @@
-package algorithm
+package tasks
 
-import (
-	"aurora/internal/tasks"
-)
-
-func TopologySort(graph *tasks.Graph) (tasks []*tasks.Signature, ok bool) {
+func TopologySort(graph *Graph) (tasks []*Signature, ok bool) {
 	// Check for loop
 	if !checkLoop(graph) {
 		return nil, false
@@ -30,7 +26,7 @@ func TopologySort(graph *tasks.Graph) (tasks []*tasks.Signature, ok bool) {
 	return tasks, true
 }
 
-func checkLoop(graph *tasks.Graph) (ok bool) {
+func checkLoop(graph *Graph) (ok bool) {
 	ok = true
 	visited := make([]bool, graph.VexNum)
 	for i := 0; i < graph.VexNum; i++ {
@@ -42,7 +38,7 @@ func checkLoop(graph *tasks.Graph) (ok bool) {
 	return
 }
 
-func dfs(graph *tasks.Graph, v int, visited []bool, ok *bool) {
+func dfs(graph *Graph, v int, visited []bool, ok *bool) {
 	visited[v] = true
 	for w := getNeighbor(graph, v); w != -1; w = getNextNeighbor(graph, v, w) {
 		if !visited[w] {
@@ -55,7 +51,7 @@ func dfs(graph *tasks.Graph, v int, visited []bool, ok *bool) {
 	visited[v] = false
 }
 
-func getNeighbor(graph *tasks.Graph, v int) (w int) {
+func getNeighbor(graph *Graph, v int) (w int) {
 	w = -1
 	for j := 0; j < graph.VexNum; j++ {
 		if graph.Edge[v][j] == 1 {
@@ -66,7 +62,7 @@ func getNeighbor(graph *tasks.Graph, v int) (w int) {
 	return
 }
 
-func getNextNeighbor(graph *tasks.Graph, v int, w int) (z int) {
+func getNextNeighbor(graph *Graph, v int, w int) (z int) {
 	z = -1
 	for j := w + 1; j < graph.VexNum; j++ {
 		if graph.Edge[v][j] == 1 {

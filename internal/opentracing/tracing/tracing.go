@@ -4,8 +4,6 @@ import (
 	"encoding/json"
 
 	"aurora/internal/tasks"
-	"aurora/internal/utils/algorithm"
-
 	opentracing "github.com/opentracing/opentracing-go"
 	opentracing_ext "github.com/opentracing/opentracing-go/ext"
 	opentracing_log "github.com/opentracing/opentracing-go/log"
@@ -143,7 +141,7 @@ func AnnotateSpanWithGraphInfo(span opentracing.Span, graph *tasks.Graph) {
 	}
 
 	// inject the tracing span into the tasks signature headers
-	initialTasks, _ := algorithm.TopologySort(graph)
+	initialTasks, _ := tasks.TopologySort(graph)
 	for _, signature := range initialTasks {
 		signature.Headers = HeadersWithSpan(signature.Headers, span)
 	}
